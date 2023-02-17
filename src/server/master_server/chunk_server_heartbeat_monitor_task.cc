@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <memory>
+#include <thread>
 
 #include "absl/strings/str_cat.h"
 #include "src/common/protocol_client/chunk_server_control_service_client.h"
