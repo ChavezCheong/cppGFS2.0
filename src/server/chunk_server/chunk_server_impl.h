@@ -72,6 +72,16 @@ class ChunkServerImpl {
   // joining them. This function call is useful when peacefully teardown
   void TerminateReportToMaster(); 
 
+  // Contrary to the original design of GFS, we will make sure to maintain 
+  // only one connection to one single master which is the leader. This requires
+  // a deletion of master in the master_server_clients_ and update the newest one
+  // this happens once we receive a heartbeat request from master and the master servers. 
+  // TODO: add the function to handle this
+  void UpdateMasterServer(
+    grpc::ServerContext* context,
+    const protos::grpc::CheckHeartBeatRequest* request
+  );
+
   // Get the configuration manager used by the chunkserver
   gfs::common::ConfigManager* GetConfigManager() const;
 
