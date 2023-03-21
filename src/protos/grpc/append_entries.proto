@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package protos.grpc;
+
+message AppendEntriesRequest {
+    uint32 term;
+    uint32 leaderId;
+    uint32 prevLogIndex;
+    uint32 prevLogTerm;
+    string entries[];
+    uint32 leaderCommit;
+}
+
+message AppendEntriesReply {
+    uint32 term;
+    bool success;
+}

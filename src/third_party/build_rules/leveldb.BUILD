@@ -50,6 +50,6 @@ cc_library(
         "LEVELDB_IS_BIG_ENDIAN=0",
         "LEVELDB_BUILD_TESTS=0",
     ],
-    linkstatic = 1,
+    linkstatic = 0,
     visibility = ["//visibility:public"],
 )
