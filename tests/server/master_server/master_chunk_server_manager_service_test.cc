@@ -28,6 +28,9 @@ const std::string kTestChunkServerName = "test_chunk_server_01";
 
 namespace {
 void StartTestMasterChunkServerManagerService() {
+     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+   pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+
   ServerBuilder builder;
   auto credentials = grpc::InsecureServerCredentials();
   builder.AddListeningPort(kTestMasterServerAddress, credentials);
@@ -38,6 +41,8 @@ void StartTestMasterChunkServerManagerService() {
 
   // Start the server, and let it run until thread is cancelled
   std::unique_ptr<Server> server(builder.BuildAndStart());
+
+   pthread_testcancel();
 
   server->Wait();
 }

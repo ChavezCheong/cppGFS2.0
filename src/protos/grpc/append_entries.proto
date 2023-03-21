@@ -2,16 +2,25 @@ syntax = "proto3";
 
 package protos.grpc;
 
+message LogEntry{
+    uint32 index = 1;
+    uint32 term = 2;
+    
+    enum CommandType{
+
+    }
+}
+
 message AppendEntriesRequest {
-    uint32 term;
-    uint32 leaderId;
-    uint32 prevLogIndex;
-    uint32 prevLogTerm;
-    string entries[];
-    uint32 leaderCommit;
+    uint32 term = 1;
+    uint32 leaderId = 2;
+    uint32 prevLogIndex = 3;
+    uint32 prevLogTerm = 4;
+    repeated LogEntry entries = 5;
+    uint32 leaderCommit = 6;
 }
 
 message AppendEntriesReply {
-    uint32 term;
-    bool success;
+    uint32 term = 1;
+    bool success = 2;
 }
