@@ -77,10 +77,10 @@ class ChunkServerImpl {
   // a deletion of master in the master_server_clients_ and update the newest one
   // this happens once we receive a heartbeat request from master and the master servers. 
   // TODO: add the function to handle this
-  void UpdateMasterServer(
-    grpc::ServerContext* context,
-    const protos::grpc::CheckHeartBeatRequest* request
-  );
+  // oid UpdateMasterServer(
+    // grpc::ServerContext* context,
+    // const protos::grpc::CheckHeartBeatRequest* request
+  // );
 
   // Get the configuration manager used by the chunkserver
   gfs::common::ConfigManager* GetConfigManager() const;
