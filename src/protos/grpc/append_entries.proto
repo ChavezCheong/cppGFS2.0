@@ -7,8 +7,15 @@ message LogEntry{
     uint32 term = 2;
     
     enum CommandType{
-
+        CHUNK_UPDATE = 0;
+        CHUNK_FAILURE = 1;
+        CHUNK_LEASE_REQUEST = 2;
+        CLIENT_NEW_FILE = 3;
+        CLIENT_EDIT_FILE = 4;
+        CLIENT_DELETE_FILE = 5;
     }
+    CommandType command = 3;
+    repeated string commandData = 4;
 }
 
 message AppendEntriesRequest {
@@ -23,4 +30,16 @@ message AppendEntriesRequest {
 message AppendEntriesReply {
     uint32 term = 1;
     bool success = 2;
+}
+
+message RequestVote{
+    uint32 term = 1;
+    uint32 candidateId = 2;
+    uint32 lastLogIndex = 3;
+    uint32 lastLogTerm = 4;
+}
+
+message RequestVoteReply{
+    uint32 term = 0;
+    bool voteGranted = 1;
 }
