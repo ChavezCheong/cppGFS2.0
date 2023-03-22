@@ -116,3 +116,23 @@ cc_grpc_library(
     visibility = ["//visibility:public"],
     deps = [":cc_chunk_server_control_service_proto"],
 )
+
+proto_library(
+    name = "raft_service_proto",
+    srcs = ["raft_service.proto"],
+    visibility = ["//visibility:public"],
+)
+
+cc_proto_library(
+    name = "cc_raft_service_proto",
+    visibility = ["//visibility:public"],
+    deps = [":raft_service_proto"],
+)
+
+cc_grpc_library(
+    name = "cc_raft_service_grpc",
+    srcs = [":raft_service_proto"],
+    grpc_only = True,
+    visiblity = ["//visibility:public"],
+    deps = [":cc_raft_service_proto"],
+)
