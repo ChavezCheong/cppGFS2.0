@@ -2,6 +2,12 @@ syntax = "proto3";
 
 package protos.grpc;
 
+service RaftService{
+    rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesReply){}
+    rpc RequestVote(RequestVoteRequest) returns (RequestVoteReply){}
+}
+
+
 message LogEntry{
     uint32 index = 1;
     uint32 term = 2;
@@ -32,7 +38,7 @@ message AppendEntriesReply {
     bool success = 2;
 }
 
-message RequestVote{
+message RequestVoteRequest{
     uint32 term = 1;
     uint32 candidateId = 2;
     uint32 lastLogIndex = 3;
