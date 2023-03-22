@@ -133,6 +133,6 @@ cc_grpc_library(
     name = "cc_raft_service_grpc",
     srcs = [":raft_service_proto"],
     grpc_only = True,
-    visiblity = ["//visibility:public"],
+    visibility = ["//visibility:public"],
     deps = [":cc_raft_service_proto"],
 )
