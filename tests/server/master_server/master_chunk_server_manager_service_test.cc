@@ -1,5 +1,6 @@
 #include <chrono>
 #include <thread>
+#include <future>
 
 #include "google/protobuf/stubs/statusor.h"
 #include "grpcpp/grpcpp.h"
@@ -27,10 +28,9 @@ const std::string kTestMasterServerAddress = "0.0.0.0:10002";
 const std::string kTestChunkServerName = "test_chunk_server_01";
 
 namespace {
-void StartTestMasterChunkServerManagerService() {
-     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-   pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+std::atomic<bool> shutdown_requested{false};
 
+void StartTestMasterChunkServerManagerService(std::promise<void> server_ready_promise) {
   ServerBuilder builder;
   auto credentials = grpc::InsecureServerCredentials();
   builder.AddListeningPort(kTestMasterServerAddress, credentials);
@@ -41,10 +41,11 @@ void StartTestMasterChunkServerManagerService() {
 
   // Start the server, and let it run until thread is cancelled
   std::unique_ptr<Server> server(builder.BuildAndStart());
-
-   pthread_testcancel();
-
-  server->Wait();
+  server_ready_promise.set_value();
+  while (!shutdown_requested.load()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  server->Shutdown();
 }
 }  // namespace
 
@@ -126,15 +127,17 @@ int main(int argc, char** argv) {
 
   // Start the MasterChunkServerManagerService in the background, and wait for
   // some time for the server to be successfully started in the background.
+  std::promise<void> server_ready_promise;
+  auto server_ready_future = server_ready_promise.get_future();
   std::thread master_server_thread =
-      std::thread(StartTestMasterChunkServerManagerService);
-  std::this_thread::sleep_for(std::chrono::seconds(3));
+      std::thread(StartTestMasterChunkServerManagerService, std::move(server_ready_promise));
+  server_ready_future.wait();
 
   // Run tests
   int exit_code = RUN_ALL_TESTS();
 
   // Clean up background server
-  pthread_cancel(master_server_thread.native_handle());
+  shutdown_requested.store(true);
   master_server_thread.join();
 
   return exit_code;
