@@ -36,8 +36,10 @@ const std::string kTestMasterServerName = "test_master";
 const std::string kTestMasterServerAddress = "0.0.0.0:10022";
 
 namespace {
+  std::atomic<bool> shutdown_requested_master{false};
+  std::vector<std::atomic<bool>> shutdown_requested_chunks(2);
 void StartChunkServerControlService(const std::string& server_address,
-                                    ChunkServerImpl* const chunk_server) {
+                                    ChunkServerImpl* const chunk_server, int server_index) {
   ServerBuilder builder;
   auto credentials = grpc::InsecureServerCredentials();
   builder.AddListeningPort(server_address, credentials);
@@ -49,7 +51,10 @@ void StartChunkServerControlService(const std::string& server_address,
   // Start the server, and let it run until thread is cancelled
   std::unique_ptr<Server> server(builder.BuildAndStart());
 
-  server->Wait();
+  while (!shutdown_requested_chunks[server_index].load()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  server->Shutdown();
 }
 
 void StartTestMasterChunkServerManagerService() {
@@ -63,14 +68,12 @@ void StartTestMasterChunkServerManagerService() {
 
   // Start the server, and let it run until thread is cancelled
   std::unique_ptr<Server> server(builder.BuildAndStart());
-
-  server->Wait();
+  while (!shutdown_requested_master.load()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  server->Shutdown();
 }
 
-void AbortThread(std::thread& thread) {
-  pthread_cancel(thread.native_handle());
-  thread.join();
-}
 }  // namespace
 
 class ChunkServerHeartBeatMonitorTaskTest : public ::testing::Test {
@@ -118,6 +121,7 @@ TEST_F(ChunkServerHeartBeatMonitorTaskTest, MonitorHeartBeatTest) {
                                                  "test_chunk_server_02"};
 
   std::vector<std::thread> chunk_server_threads;
+  int server_index = 0;
 
   for (auto& chunk_server_name : chunk_server_names) {
     // Create the chunkserver
@@ -132,7 +136,8 @@ TEST_F(ChunkServerHeartBeatMonitorTaskTest, MonitorHeartBeatTest) {
         std::thread(StartChunkServerControlService,
                     config_mgr_->GetServerAddress(chunk_server_name,
                                                   /*resolve_hostname=*/true),
-                    chunk_server));
+                    chunk_server, server_index));
+    server_index++;
 
     // Get the master server address
     const std::string master_server_address = config_mgr_->GetServerAddress(
@@ -162,7 +167,8 @@ TEST_F(ChunkServerHeartBeatMonitorTaskTest, MonitorHeartBeatTest) {
   EXPECT_EQ(chunk_server_names.size(), allocated_locations.size());
 
   // Abort the first chunk server
-  AbortThread(chunk_server_threads[0]);
+  shutdown_requested_chunks[0].store(true);
+  chunk_server_threads[0].join();
 
   // Wait for heartbeat task to notice this chunkserver is down
   auto heartbeat_task_sleep_duration =
@@ -190,23 +196,28 @@ TEST_F(ChunkServerHeartBeatMonitorTaskTest, MonitorHeartBeatTest) {
             allocated_server_address);
 
   // Abort the second chunk server
-  AbortThread(chunk_server_threads[1]);
+  shutdown_requested_chunks[1].store(true);
+  chunk_server_threads[1].join();
 }
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
+  for (auto& shutdown_requested : shutdown_requested_chunks) {
+    shutdown_requested.store(false);
+  }
+
   // Start the MasterChunkServerManagerService in the background, and wait for
   // some time for the server to be successfully started in the background.
   std::thread master_server_thread =
       std::thread(StartTestMasterChunkServerManagerService);
-  std::this_thread::sleep_for(std::chrono::seconds(3));
 
   // Run tests
   int exit_code = RUN_ALL_TESTS();
 
   // Clean up background server
-  AbortThread(master_server_thread);
+  shutdown_requested_master.store(true);
+  master_server_thread.join();
 
   return exit_code;
 }

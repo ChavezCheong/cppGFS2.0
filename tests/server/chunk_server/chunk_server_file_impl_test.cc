@@ -62,6 +62,7 @@ const uint64_t kTestLeaseExpirationUnixSeconds =
     absl::ToUnixSeconds(absl::Now() + absl::Hours(1));
 
 namespace {
+std::atomic<bool> shutdown_requested{false};
 void SeedTestData(ChunkServerImpl* chunk_server) {
   // TODO(tugan): chunk_server is not used for now, but will be added in future
   // pull request for seeding lease service's test data; I leave it here for
@@ -110,7 +111,10 @@ void StartTestServer(const std::string& server_address,
   builder.RegisterService(&file_service);
   // Start the server, and let it run until thread is cancelled
   std::unique_ptr<Server> server(builder.BuildAndStart());
-  server->Wait();
+  while (!shutdown_requested.load()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  server->Shutdown();
 }
 
 StatusOr<SendChunkDataReply> SendDataToChunkServer(
@@ -575,7 +579,7 @@ int main(int argc, char** argv) {
   int exit_code = RUN_ALL_TESTS();
 
   // Clean up background server
-  pthread_cancel(server_thread.native_handle());
+  shutdown_requested.store(true);
   server_thread.join();
 
   return exit_code;

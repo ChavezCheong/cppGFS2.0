@@ -40,6 +40,7 @@ const uint64_t kTestExpirationUnixSeconds =
     absl::ToUnixSeconds(absl::Now() + absl::Hours(1));
 
 namespace {
+std::atomic<bool> shutdown_requested{false};
 void SeedTestData(ChunkServerImpl* chunk_server) {
   // initial chunks
   FileChunkManager::GetInstance()->CreateChunk(kTestGrantLeaseChunkHandle,
@@ -72,7 +73,10 @@ void StartTestServer() {
   builder.RegisterService(&lease_service);
   // Start the server, and let it run until thread is cancelled
   std::unique_ptr<Server> server(builder.BuildAndStart());
-  server->Wait();
+  while (!shutdown_requested.load()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  server->Shutdown();
 }
 }  // namespace
 
@@ -202,7 +206,7 @@ int main(int argc, char** argv) {
   int exit_code = RUN_ALL_TESTS();
 
   // Clean up background server
-  pthread_cancel(server_thread.native_handle());
+  shutdown_requested.store(true);
   server_thread.join();
 
   return exit_code;

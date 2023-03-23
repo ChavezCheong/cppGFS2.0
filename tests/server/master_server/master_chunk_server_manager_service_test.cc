@@ -30,7 +30,7 @@ const std::string kTestChunkServerName = "test_chunk_server_01";
 namespace {
 std::atomic<bool> shutdown_requested{false};
 
-void StartTestMasterChunkServerManagerService(std::promise<void> server_ready_promise) {
+void StartTestMasterChunkServerManagerService() {
   ServerBuilder builder;
   auto credentials = grpc::InsecureServerCredentials();
   builder.AddListeningPort(kTestMasterServerAddress, credentials);
@@ -41,7 +41,6 @@ void StartTestMasterChunkServerManagerService(std::promise<void> server_ready_pr
 
   // Start the server, and let it run until thread is cancelled
   std::unique_ptr<Server> server(builder.BuildAndStart());
-  server_ready_promise.set_value();
   while (!shutdown_requested.load()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
@@ -127,11 +126,8 @@ int main(int argc, char** argv) {
 
   // Start the MasterChunkServerManagerService in the background, and wait for
   // some time for the server to be successfully started in the background.
-  std::promise<void> server_ready_promise;
-  auto server_ready_future = server_ready_promise.get_future();
   std::thread master_server_thread =
-      std::thread(StartTestMasterChunkServerManagerService, std::move(server_ready_promise));
-  server_ready_future.wait();
+      std::thread(StartTestMasterChunkServerManagerService);
 
   // Run tests
   int exit_code = RUN_ALL_TESTS();

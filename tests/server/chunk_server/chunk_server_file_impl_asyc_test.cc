@@ -49,6 +49,9 @@ using google::protobuf::util::StatusOr;
 using grpc::Server;
 using grpc::ServerBuilder;
 
+
+std::atomic<bool> shutdown_requested_master{false};
+std::atomic<bool> shutdown_requested_chunk{false};
 void SeedTestChunkData() {
   auto file_chunk_manager(FileChunkManager::GetInstance());
   file_chunk_manager->Initialize("file_service_test_db", 1000000);
@@ -112,7 +115,10 @@ void StartTestChunkServer() {
   SeedTestChunkData();
   // Start the server, and let it run until thread is cancelled
   std::unique_ptr<Server> server(builder.BuildAndStart());
-  server->Wait();
+  while (!shutdown_requested_chunk.load()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  server->Shutdown();
 }
 
 // Start a test master server, this gets called from a separate thread
@@ -129,7 +135,10 @@ void StartTestMasterServer() {
   SeedTestMetadata();
   // Start the server, and let it run until thread is cancelled
   std::unique_ptr<Server> server(builder.BuildAndStart());
-  server->Wait();
+  while (!shutdown_requested_master.load()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  server->Shutdown();
 }
 
 // Initialize the client impl and make it ready to call client function
@@ -220,10 +229,9 @@ int main(int argc, char** argv) {
   int exit_code = RUN_ALL_TESTS();
 
   // Clean up background server
-  pthread_cancel(chunk_server_thread.native_handle());
-  pthread_cancel(master_server_thread.native_handle());
-
+  shutdown_requested_chunk.store(true);
   chunk_server_thread.join();
+  shutdown_requested_master.store(true);
   master_server_thread.join();
 
   return exit_code;
