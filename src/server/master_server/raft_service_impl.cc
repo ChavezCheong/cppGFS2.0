@@ -12,8 +12,8 @@ grpc::Status RequestVote(grpc::ServerContext* context,
     protos::grpc::RequestVoteReply* reply){
     // TODO: implement logic here
 
-    response->set_term(currentTerm);
-    response->set_votegranted(false);
+    reply->set_term(currentTerm);
+    reply->set_votegranted(false);
 
     // reply false if term < currentTerm
     if (request->term() < currentTerm){
