@@ -34,7 +34,7 @@ grpc::Status RequestVote(grpc::ServerContext* context,
        ((log.back().term() < request->lastlogterm()) || 
        (log.back().term() == request->lastlogterm() && log.size() - 1 <= request->lastlogindex())))){
         votedFor = request->candidateid();
-        response->set_votegranted(true);
+        reply->set_votegranted(true);
         // TODO: set votedFor in persistent storage and currentTerm
         // TODO: add some way to get current server id for logging
         LOG(INFO) << "Server voted for " << request->candidateid();
