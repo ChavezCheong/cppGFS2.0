@@ -6,11 +6,24 @@
 namespace gfs{
 namespace server{
 
-// This interface aims to extend single-master server to multiple master servers
-// where we obtain consensus using Raft algorithm
+// Implementation for handling RaftService requests
 
-class RaftServiceImpl final : public protos::grpc::RaftService::Service{
-    public:
+class RaftServiceImpl final 
+    : public protos::grpc::RaftService::Service {
+public:
+    RaftServiceImpl();
+
+
+private:
+    // Handle AppendEntries request sent by Raft server
+    grpc::Status AppendEntries(grpc::ServerContext* context,
+                               const protos::grpc::AppendEntriesRequest* request,
+                               protos::grpc::AppendEntriesReply* reply) override;
+
+    // Handle RequestVote request sent by Raft server
+    grpc::Status RequestVote(grpc::ServerContext* context,
+                               const protos::grpc::RequestVoteRequest* request,
+                               protos::grpc::RequestVoteReply* reply) override;
 
 
 };
