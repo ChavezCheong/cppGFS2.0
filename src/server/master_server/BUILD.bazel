@@ -111,3 +111,14 @@ cc_library(
         "@com_google_absl//absl/synchronization",
     ],
 )
+
+cc_library(
+    name = "raft_service_impl",
+    srcs = ["raft_service_impl.cc"],
+    hdrs = ["raft_service_impl.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/common:system_logger",
+        "//src/protos/grpc:cc_raft_service_grpc"
+    ]
+)

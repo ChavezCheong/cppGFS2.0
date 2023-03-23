@@ -5,7 +5,7 @@
 using protos::grpc::LogEntry;
 
 namespace gfs{
-namespace server{
+namespace service{
 
 // Implementation for handling RaftService requests
 
@@ -32,7 +32,7 @@ private:
 
     // persistent state
     int currentTerm, votedFor;
-    std::vector<LogEntry> log;
+    std::vector<LogEntry> log_;
 
     // volatile state on all servers
     int commitIndex, lastApplied;

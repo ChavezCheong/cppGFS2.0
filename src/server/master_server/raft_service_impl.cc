@@ -7,7 +7,7 @@ namespace gfs{
 namespace service{
 
 
-grpc::Status RequestVote(grpc::ServerContext* context,
+grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     const protos::grpc::RequestVoteRequest* request,
     protos::grpc::RequestVoteReply* reply){
     // TODO: implement logic here
@@ -30,20 +30,22 @@ grpc::Status RequestVote(grpc::ServerContext* context,
     // if votedFor is null or candidateId, and candidates 
     // log is at least as up to date as receiver's log, grant vote
     if((votedFor == -1 || votedFor == request->candidateid())
-       && (log.empty() || 
-       ((log.back().term() < request->lastlogterm()) || 
-       (log.back().term() == request->lastlogterm() && log.size() - 1 <= request->lastlogindex())))){
+       && (log_.empty() || 
+       ((log_.back().term() < request->lastlogterm()) || 
+       (log_.back().term() == request->lastlogterm() && log_.size() - 1 <= request->lastlogindex())))){
         votedFor = request->candidateid();
-        response->set_votegranted(true);
+        reply->set_votegranted(true);
         // TODO: set votedFor in persistent storage and currentTerm
         // TODO: add some way to get current server id for logging
         LOG(INFO) << "Server voted for " << request->candidateid();
     }
 
+    // TODO: add timer for election to timeout when necessary
+
     return grpc::Status::OK;
 }
 
-grpc::Status AppendEntries(grpc::ServerContext* context,
+grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
     const protos::grpc::AppendEntriesRequest* request,
     protos::grpc::AppendEntriesReply* reply){
 
@@ -67,7 +69,7 @@ grpc::Status AppendEntries(grpc::ServerContext* context,
 
     // If the log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm, reject the request
 
-    if(prev_log_index >= log.size() || log[prev_log_index].term() != prev_log_term){
+    if(prev_log_index >= log_.size() || log_[prev_log_index].term() != prev_log_term){
         reply->set_term(currentTerm);
         reply->set_success(false);
         return grpc::Status::OK; // might need to change this
@@ -82,12 +84,12 @@ grpc::Status AppendEntries(grpc::ServerContext* context,
         // TODO: implement append entries logic here
         // might need to fix
 
-        if(index < log.size() && log[index].term() != term){
+        if(index < log_.size() && log_[index].term() != term){
             // if the entry conflicts with the log, i.e has the same index but different term, delete entries 
-            log.resize(index);
+            log_.resize(index);
         }
 
-        if(index >= log.size()){
+        if(index >= log_.size()){
             // add log entry to the log, not sure how to do this efficiently
         }
 
@@ -95,7 +97,7 @@ grpc::Status AppendEntries(grpc::ServerContext* context,
 
         if(request->leadercommit() > commitIndex){
             // log.size() - 1 is the index of last entry, might change depend on implementation
-            commitIndex = std::min(request->leadercommit(), log.size() - 1);
+            commitIndex = std::min(request->leadercommit(), (uint32_t) log_.size() - 1);
 
         }
 
@@ -123,7 +125,7 @@ grpc::Status AppendEntries(grpc::ServerContext* context,
 }
 
 
-void ConvertToFollower(){
+void RaftServiceImpl::ConvertToFollower(){
     currState = State::Follower;
 }
 
