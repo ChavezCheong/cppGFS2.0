@@ -26,6 +26,9 @@ private:
                                const protos::grpc::RequestVoteRequest* request,
                                protos::grpc::RequestVoteReply* reply) override;
 
+    void SendRequestVote(); // TODO: change this later
+    void SendAppendEntries(); //TODO: change this later
+
     void ConvertToFollower();
     void ConvertToCandidate();
     void ConvertToLeader();
