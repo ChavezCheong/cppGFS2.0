@@ -1,7 +1,7 @@
 #include "raft_service_impl.h"
 
 #include "src/protos/grpc/raft_service.grpc.pb.h"
-
+#include "src/common/system_logger.h"
 
 namespace gfs{
 namespace service{
