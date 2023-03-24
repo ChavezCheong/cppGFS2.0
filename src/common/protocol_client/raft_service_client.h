@@ -17,7 +17,7 @@ class RaftServiceClient {
   // the specified gRPC |channel|, which handles gRPCs defined in the
   // RaftService.
   RaftServiceClient(std::shared_ptr<grpc::Channel> channel)
-      : stub_(protos::grpc::RaftService::NewStub(channel)) {}
+      : stub_(protos::grpc::RaftService::NewStub(std::static_pointer_cast<grpc::ChannelInterface>(channel))) {}
 
   // Send an RequestVote gRPC |request| to the master server, and return master's
   // corresponding reply if successful; otherwise a Status with error message.
