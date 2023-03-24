@@ -101,6 +101,13 @@ class ClientImpl {
   std::shared_ptr<service::MasterMetadataServiceClient> 
       master_metadata_service_client_;
 
+  // Reference to MasterMetadataService clients which can be accessed by the
+  // master addresses, the client will have to connect to different 
+  // master servers. 
+  common::parallel_hash_map<
+      std::string, std::shared_ptr<service::MasterMetadataServiceClient>> 
+          master_metadata_service_client_map_;
+
   // Reference to ChunkServerServiceGfs clients which can be accessed by the
   // chunk server addresses, the client will have to connect to different 
   // chunk servers. 

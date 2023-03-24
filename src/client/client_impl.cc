@@ -615,13 +615,22 @@ ClientImpl::ClientImpl(common::ConfigManager* config_manager,
   cache_manager_ = CacheManager::ConstructCacheManager(
       config_manager_->GetClientCacheTimeout());
 
-  // Instantiate the master service client
-  auto master_address(
-      config_manager_->GetServerAddress(master_name, resolve_hostname));
-  auto credentials = grpc::InsecureChannelCredentials();
-  auto master_channel(grpc::CreateChannel(master_address, credentials));
-  master_metadata_service_client_ =
-      std::make_shared<service::MasterMetadataServiceClient>(master_channel);
+  // Instantiate the master service client hashmap
+  for (std::string& server_name : config->GetAllMasterServers()) {
+    RegisterMasterMetadataServiceClient(server_name);
+  }
+}
+
+void ClientImpl::RegisterMasterMetadataServiceClient(
+    const std::string& server_address) {
+  LOG(INFO) << "Establishing new connection to master metadata service client: "
+            << server_address;
+            
+  master_metadata_service_client_map_.TryInsert(
+      server_address,
+      std::make_shared<service::MasterMetadataServiceClient>(
+        grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials())
+      ));
 }
 
 google::protobuf::util::StatusOr<ClientImpl*> ClientImpl::ConstructClientImpl(
