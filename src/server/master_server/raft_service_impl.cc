@@ -1,15 +1,37 @@
 #include "raft_service_impl.h"
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/system_logger.h"
+#include <csignal>
 
 using protos::grpc::RequestVoteRequest;
 
 namespace gfs{
 namespace service{
+RaftServiceImpl* alarmHandlerServer;
+
+void HandleSignal(int signum) {
+    alarmHandlerServer->AlarmCallback();
+}
 
 void RaftServiceImpl::Initialize(){
+    signal(SIGALRM, &HandleSignal);
+    alarmHandlerServer = this;
+}
+
+
+void RaftServiceImpl::AlarmCallback() {
 
 }
+
+void RaftServiceImpl::SetAlarm(int after_ms) {
+    struct itimerval timer;
+    setitimer(ITIMER_REAL, &timer, nullptr);
+    timer.it_value.tv_sec = after_ms / 1000;
+    timer.it_value.tv_usec = 1000 * (after_ms % 1000); // microseconds
+    timer.it_interval = timer.it_value;
+    return;
+}
+
 
 
 
