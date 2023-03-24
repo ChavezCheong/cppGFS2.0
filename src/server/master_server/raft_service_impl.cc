@@ -3,9 +3,10 @@
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/system_logger.h"
 
+using protos::grpc::RequestVoteRequest;
+
 namespace gfs{
 namespace service{
-
 
 grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     const protos::grpc::RequestVoteRequest* request,
@@ -140,7 +141,37 @@ void RaftServiceImpl::ConvertToFollower(){
 
 // TODO: implement logic here
 void RaftServiceImpl::ConvertToCandidate(){
+    // Once a server is converted to candidate, we increase the current term
+    currentTerm++;
 
+    votedFor = serverId;
+
+    reset_election_timeout();
+
+    std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
+
+    for(int server_id = 0; server_id < numServers; server_id++){
+        if(server_id == serverId){
+            continue;
+        }
+
+        // TODO: use config manager to get the master address, then send a request vote RPC to it
+
+        RequestVoteRequest request;
+
+        request.set_term(currentTerm);
+        request.set_candidateid(votedFor);
+        request.set_lastlogterm(log_.back().term());
+        request.set_lastlogindex(log_.back().index());
+
+        // send request vote to the server
+
+        // SendRequest(request, server);
+    }
+}
+
+void RaftServiceImpl::reset_election_timeout(){
+    // TODO: add a Timer here
 }
 
 // TODO: implement logic here

@@ -2,6 +2,7 @@
 #define GFS_SERVER_MASTER_SERVER_RAFT_SERVICE_IMPL_H_
 
 #include "src/protos/grpc/raft_service.grpc.pb.h"
+#include "src/common/config_manager.h"
 using protos::grpc::LogEntry;
 
 namespace gfs{
@@ -12,7 +13,7 @@ namespace service{
 class RaftServiceImpl final 
     : public protos::grpc::RaftService::Service {
 public:
-    RaftServiceImpl();
+    RaftServiceImpl(common::ConfigManager* config_manager) : config_manager_(config_manager) {};
 
 
 private:
@@ -33,15 +34,22 @@ private:
     void ConvertToCandidate();
     void ConvertToLeader();
 
+    void reset_election_timeout();
+
+    common::ConfigManager* config_manager_;
+
     // persistent state
     int currentTerm, votedFor;
     std::vector<LogEntry> log_;
+
+    const int numServers = 3;
 
     // volatile state on all servers
     int commitIndex, lastApplied, currLeader;
     enum State {Follower, Candidate, Leader};
     State currState;
 
+    int serverId;
 
     // volatile state on leaders
     std::vector<int> nextIndex, matchIndex;
