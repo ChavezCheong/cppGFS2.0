@@ -109,9 +109,9 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
         }
     }
 
-    response->set_success(true);
+    reply->set_success(true);
     ConvertToFollower();
-    currLeader = request->(leaderId);
+    currLeader = request->leaderid();
 
 
     // TODO: Follower: If election timeout elapses without receiving AppendEntries

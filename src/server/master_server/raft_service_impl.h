@@ -1,5 +1,5 @@
-#ifndef GFS_SERVER_MASTER_SERVER_RAFT_CONSENSUS_H_
-#define GFS_SERVER_MASTER_SERVER_RAFT_CONSENSUS_H_
+#ifndef GFS_SERVER_MASTER_SERVER_RAFT_SERVICE_IMPL_H_
+#define GFS_SERVER_MASTER_SERVER_RAFT_SERVICE_IMPL_H_
 
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 using protos::grpc::LogEntry;
