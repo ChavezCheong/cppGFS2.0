@@ -34,6 +34,8 @@ private:
     void ConvertToCandidate();
     void ConvertToLeader();
 
+    void Initialize();
+
     void reset_election_timeout();
 
     common::ConfigManager* config_manager_;

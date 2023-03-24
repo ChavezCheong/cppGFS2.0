@@ -1,5 +1,4 @@
 #include "raft_service_impl.h"
-
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/system_logger.h"
 
@@ -7,6 +6,11 @@ using protos::grpc::RequestVoteRequest;
 
 namespace gfs{
 namespace service{
+
+RaftServiceImpl(common::ConfigManager* config_manager){
+     config_manager_(config_manager);
+}
+
 
 grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     const protos::grpc::RequestVoteRequest* request,
