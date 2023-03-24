@@ -7,9 +7,10 @@ using protos::grpc::RequestVoteRequest;
 namespace gfs{
 namespace service{
 
-RaftServiceImpl(common::ConfigManager* config_manager){
-     config_manager_(config_manager);
+void RaftServiceImpl::Initialize(){
+
 }
+
 
 
 grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
