@@ -14,7 +14,7 @@ class RaftServiceImpl final
     : public protos::grpc::RaftService::Service {
 public:
     RaftServiceImpl(common::ConfigManager* config_manager) : config_manager_(config_manager) {};
-
+    enum State {Follower, Candidate, Leader};
 
 private:
     // Handle AppendEntries request sent by Raft server
@@ -34,6 +34,8 @@ private:
     void ConvertToCandidate();
     void ConvertToLeader();
 
+    State GetCurrentState();
+
     void reset_election_timeout();
 
     common::ConfigManager* config_manager_;
@@ -45,8 +47,7 @@ private:
     const int numServers = 3;
 
     // volatile state on all servers
-    int commitIndex, lastApplied, currLeader;
-    enum State {Follower, Candidate, Leader};
+    int commitIndex, lastApplied, currLeader, numVotes;
     State currState;
 
     int serverId;
