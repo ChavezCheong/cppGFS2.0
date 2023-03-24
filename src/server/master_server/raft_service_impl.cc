@@ -138,12 +138,12 @@ void RaftServiceImpl::ConvertToFollower(){
 }
 
 // TODO: implement logic here
-void ConvertToCandidate(){
+void RaftServiceImpl::ConvertToCandidate(){
 
 }
 
 // TODO: implement logic here
-void ConvertToLeader(){
+void RaftServiceImpl::ConvertToLeader(){
 
 }
 

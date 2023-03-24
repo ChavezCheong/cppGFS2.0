@@ -3,6 +3,7 @@ syntax = "proto3";
 package protos.grpc;
 
 service RaftService {
+    // add more functions to the services
     rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesReply){}
     rpc RequestVote(RequestVoteRequest) returns (RequestVoteReply){}
 }
