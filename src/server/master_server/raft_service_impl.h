@@ -15,6 +15,10 @@ class RaftServiceImpl final
 public:
     RaftServiceImpl(common::ConfigManager* config_manager) : config_manager_(config_manager) {};
     enum State {Follower, Candidate, Leader};
+    void Initialize();
+
+    void AlarmCallback();
+    void Initialize();
 
     void AlarmCallback();
     void Initialize();
@@ -40,6 +44,7 @@ private:
     State GetCurrentState();
 
     void SetAlarm(int after_ms);
+    
 
     void reset_election_timeout();
 

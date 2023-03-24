@@ -4,6 +4,7 @@
 #include <csignal>
 
 using protos::grpc::RequestVoteRequest;
+using protos::grpc::AppendEntriesRequest;
 
 namespace gfs{
 namespace service{
@@ -217,7 +218,23 @@ void RaftServiceImpl::reset_election_timeout(){
 
 // TODO: implement logic here
 void RaftServiceImpl::ConvertToLeader(){
+    // Upon election, send empty AppendEntries RPC to all other servers
 
+    std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
+    AppendEntriesRequest request;
+
+    request.set_term(currentTerm);
+    request.set_leaderid(currLeader);
+    request.set_prevlogindex(log_.back().index());
+    request.set_prevlogterm(log_.back().term());
+    request.set_leadercommit(log_.back().index());
+
+    for(int server_id = 0; server_id < numServers; server_id++){
+        if(server_id = serverId){
+            continue;
+        }
+        // send request to server_id
+    }
 }
 
 
