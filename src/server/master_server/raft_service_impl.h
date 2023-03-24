@@ -38,7 +38,7 @@ private:
     std::vector<LogEntry> log_;
 
     // volatile state on all servers
-    int commitIndex, lastApplied;
+    int commitIndex, lastApplied, currLeader;
     enum State {Follower, Candidate, Leader};
     State currState;
 

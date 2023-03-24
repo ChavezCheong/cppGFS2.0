@@ -102,29 +102,30 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
         }
 
         // If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
-
         if(request->leadercommit() > commitIndex){
             // log.size() - 1 is the index of last entry, might change depend on implementation
             commitIndex = std::min(request->leadercommit(), (uint32_t) log_.size() - 1);
 
         }
-
-
-        return grpc::Status::OK;
-
-
-        // TODO: Leader might send AppendEntries RPC after voting to convert Candidates to Follower
-        // TODO: Follower: If election timeout elapses without receiving AppendEntries
-        // RPC from current leader or granting vote to candidate: convert to candidate
-        // TODO: Follower: Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server; repeat during idle periods to prevent election timeouts 
-        // TODO: If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex
-        /*• If successful: update nextIndex and matchIndex for
-        follower (§5.3)
-        • If AppendEntries fails because of log inconsistency:
-        decrement nextIndex and retry
-        */
-        
     }
+
+    response->set_success(true);
+    ConvertToFollower();
+    currLeader = request->(leaderId);
+
+
+    // TODO: Follower: If election timeout elapses without receiving AppendEntries
+    // RPC from current leader or granting vote to candidate: convert to candidate
+    // TODO: Follower: Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server; repeat during idle periods to prevent election timeouts 
+    // TODO: If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex
+    /*• If successful: update nextIndex and matchIndex for
+    follower (§5.3)
+    • If AppendEntries fails because of log inconsistency:
+    decrement nextIndex and retry
+    */
+
+
+        
 
     // If the leader's commit index is greater than ours, update our commit index
 
