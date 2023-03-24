@@ -63,6 +63,14 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
         reply->set_success(false);
         return grpc::Status::OK; // might need to change this
     }
+    // increment term if RPC contains higher term and convert to follower
+    else if(request->term() > currentTerm){
+        // TODO: add some way to get current servers address for logging purposes
+        LOG(INFO) << "Server converting to follower ";
+        currentTerm = request->term();
+        ConvertToFollower();
+    }
+
 
     // TODO: handle election timeout
 
@@ -76,9 +84,9 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
     }
 
     // iterate over entry and append to the log
+    int index = prev_log_index + 1;
 
     for(const auto& entry : request->entries()){
-        int index = entry.index();
         int term = entry.term();
 
         // TODO: implement append entries logic here
@@ -90,7 +98,7 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
         }
 
         if(index >= log_.size()){
-            // add log entry to the log, not sure how to do this efficiently
+            log_.push_back(entry);
         }
 
         // If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
