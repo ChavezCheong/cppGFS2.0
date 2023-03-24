@@ -33,15 +33,20 @@ private:
     void ConvertToCandidate();
     void ConvertToLeader();
 
+    void reset_election_timeout();
+
     // persistent state
     int currentTerm, votedFor;
     std::vector<LogEntry> log_;
+
+    const int numServers = 3;
 
     // volatile state on all servers
     int commitIndex, lastApplied, currLeader;
     enum State {Follower, Candidate, Leader};
     State currState;
 
+    int serverId;
 
     // volatile state on leaders
     std::vector<int> nextIndex, matchIndex;

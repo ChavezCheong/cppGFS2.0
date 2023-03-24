@@ -109,9 +109,9 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
         }
     }
 
-    response->set_success(true);
+    reply->set_success(true);
     ConvertToFollower();
-    currLeader = request->(leaderId);
+    currLeader = request->leaderid();
 
 
     // TODO: Follower: If election timeout elapses without receiving AppendEntries
@@ -140,7 +140,24 @@ void RaftServiceImpl::ConvertToFollower(){
 
 // TODO: implement logic here
 void RaftServiceImpl::ConvertToCandidate(){
+    // Once a server is converted to candidate, we increase the current term
+    currentTerm++;
 
+    votedFor = serverId;
+
+    reset_election_timeout();
+
+    for(int server_id = 0; server_id < numServers; server_id++){
+        if(server_id == serverId){
+            continue;
+        }
+
+        // TODO: use config manager to get the master address, then send a request vote RPC to it
+    }
+}
+
+void RaftServiceImpl::reset_election_timeout(){
+    // TODO: add a Timer here
 }
 
 // TODO: implement logic here
