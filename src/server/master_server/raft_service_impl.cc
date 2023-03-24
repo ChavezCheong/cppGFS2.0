@@ -7,8 +7,8 @@ using protos::grpc::RequestVoteRequest;
 namespace gfs{
 namespace service{
 
-void RaftServiceImpl::Initialize(){
-    
+RaftServiceImpl(common::ConfigManager* config_manager){
+     config_manager_(config_manager);
 }
 
 
@@ -147,7 +147,7 @@ void RaftServiceImpl::ConvertToFollower(){
 void RaftServiceImpl::ConvertToCandidate(){
     // Once a server is converted to candidate, we increase the current term
     currentTerm++;
-
+    numVotes = 0;
     votedFor = serverId;
 
     reset_election_timeout();
@@ -171,8 +171,22 @@ void RaftServiceImpl::ConvertToCandidate(){
         // send request vote to the server
 
         // SendRequest(request, server);
+
+        // TODO: create a client to communicate with the masters
+
+    }
+
+    // count the votes:
+
+    if(numVotes >= 2){
+        ConvertToLeader();
     }
 }
+
+RaftServiceImpl::State RaftServiceImpl::GetCurrentState(){
+    return currState;
+}
+
 
 void RaftServiceImpl::reset_election_timeout(){
     // TODO: add a Timer here
