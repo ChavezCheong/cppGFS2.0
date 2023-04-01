@@ -15,11 +15,6 @@ class RaftServiceImpl final
 public:
     RaftServiceImpl(common::ConfigManager* config_manager) : config_manager_(config_manager) {};
     enum State {Follower, Candidate, Leader};
-    void Initialize();
-
-    void AlarmCallback();
-    void Initialize();
-
     void AlarmCallback();
     void Initialize();
 
