@@ -277,11 +277,22 @@ void RaftServiceImpl::ConvertToLeader(){
     request.set_prevlogterm(log_.back().term());
     request.set_leadercommit(log_.back().index());
 
-    for(int server_id = 0; server_id < numServers; server_id++){
-        if(server_id == serverId){
-            continue;
-        }
-        // send request to server_id
+    std::vector<
+        std::future<std::pair<std::string, StatusOr<AppendEntriesReply>>>>
+        append_entries_results;
+
+    for(auto server_name : all_servers){
+        //TODO: CRITICAL FIX: DONT SEND TO YOURSELF EDIT THIS WHEN YOU ADD YOUR OWN SERVER NAME
+        append_entries_results.push_back(
+            std::async(std::launch::async, [&, server_name](){
+
+                auto client = masterServerClients[server_name];
+
+                auto append_entries_reply = client->SendRequest(request);
+
+                return std::pair<std::string, StatusOr<AppendEntriesReply>>(
+                    server_name, append_entries_reply);
+        }));
     }
 }
 
