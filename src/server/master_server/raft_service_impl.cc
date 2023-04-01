@@ -230,7 +230,7 @@ void RaftServiceImpl::ConvertToLeader(){
     request.set_leadercommit(log_.back().index());
 
     for(int server_id = 0; server_id < numServers; server_id++){
-        if(server_id = serverId){
+        if(server_id == serverId){
             continue;
         }
         // send request to server_id
