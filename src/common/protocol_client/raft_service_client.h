@@ -5,6 +5,7 @@
 
 #include "google/protobuf/stubs/status.h"
 #include "google/protobuf/stubs/statusor.h"
+#include "grpcpp/grpcpp.h"
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 
 namespace gfs {

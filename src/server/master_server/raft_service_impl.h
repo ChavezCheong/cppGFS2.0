@@ -49,9 +49,7 @@ private:
 
     common::ConfigManager* config_manager_;
 
-    gfs::common::thread_safe_flat_hash_map<std::string,
-    std::shared_ptr<gfs::service::RaftServiceClient>>
-    masterServerClients;
+    gfs::common::thread_safe_flat_hash_map<std::string, std::shared_ptr<gfs::service::RaftServiceClient>> masterServerClients;
 
     // persistent state
     int currentTerm, votedFor;
