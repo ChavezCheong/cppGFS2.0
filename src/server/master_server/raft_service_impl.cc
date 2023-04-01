@@ -3,9 +3,18 @@
 #include "src/common/system_logger.h"
 #include <csignal>
 #include <random>
+#include <future>
+#include <utility>
+#include <vector>
 
 using protos::grpc::RequestVoteRequest;
 using protos::grpc::AppendEntriesRequest;
+using protos::grpc::RequestVoteReply;
+using protos::grpc::AppendEntriesReply;
+using google::protobuf::util::Status;
+using google::protobuf::util::StatusOr;
+
+
 
 namespace gfs{
 namespace service{
@@ -201,24 +210,29 @@ void RaftServiceImpl::ConvertToCandidate(){
     reset_election_timeout();
 
     std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
+    // Send the requests in parallel
+    std::vector<
+        std::future<std::pair<std::string, StatusOr<RequestVoteReply>>>>
+        request_vote_results;
 
     for(auto server_name : all_servers){
+        //TODO: CRITICAL FIX: DONT SEND TO YOURSELF EDIT THIS WHEN YOU ADD YOUR OWN SERVER NAME
+        request_vote_results.push_back(
+            std::async(std::launch::async, [&, server_name](){
+                RequestVoteRequest request;
 
-        // TODO: use config manager to get the master address, then send a request vote RPC to it
+                request.set_term(currentTerm);
+                request.set_candidateid(votedFor);
+                request.set_lastlogterm(log_.back().term());
+                request.set_lastlogindex(log_.back().index());
 
-        RequestVoteRequest request;
+                auto client = masterServerClients[server_name];
 
-        request.set_term(currentTerm);
-        request.set_candidateid(votedFor);
-        request.set_lastlogterm(log_.back().term());
-        request.set_lastlogindex(log_.back().index());
+                auto request_vote_reply = client->SendRequest(request);
 
-        // send request vote to the server
-
-        // SendRequest(request, server);
-
-        // TODO: create a client to communicate with the masters
-
+                return std::pair<std::string, StatusOr<RequestVoteReply>>(
+                    server_name, request_vote_reply);
+        }));
     }
 
     // count the votes:
