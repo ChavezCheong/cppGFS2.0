@@ -234,6 +234,8 @@ void RaftServiceImpl::ConvertToLeader(){
             continue;
         }
         // send request to server_id
+
+        
     }
 }
 
