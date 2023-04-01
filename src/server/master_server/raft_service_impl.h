@@ -3,6 +3,7 @@
 
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/config_manager.h"
+#include "src/common/protocol_client/raft_service_client.h"
 using protos::grpc::LogEntry;
 
 namespace gfs{
@@ -44,6 +45,10 @@ private:
     void reset_election_timeout();
 
     common::ConfigManager* config_manager_;
+
+    gfs::common::thread_safe_flat_hash_map<std::string,
+    std::shared_ptr<gfs::service::RaftServiceClient>>
+    masterServerClients;
 
     // persistent state
     int currentTerm, votedFor;

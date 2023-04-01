@@ -17,6 +17,15 @@ void HandleSignal(int signum) {
 void RaftServiceImpl::Initialize(){
     signal(SIGALRM, &HandleSignal);
     alarmHandlerServer = this;
+    std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
+    for(&auto server_name : all_servers){
+        config_manager_->GetServerAddress(server_name,
+                                          /*resolve_hostname=*/true);
+        masterServerClients[server_address] =         
+        std::make_shared<RaftServiceClient>(
+            grpc::CreateChannel(server_address,
+                                grpc::InsecureChannelCredentials()));
+    }
 }
 
 
@@ -26,10 +35,10 @@ void RaftServiceImpl::AlarmCallback() {
 
 void RaftServiceImpl::SetAlarm(int after_ms) {
     struct itimerval timer;
-    setitimer(ITIMER_REAL, &timer, nullptr);
     timer.it_value.tv_sec = after_ms / 1000;
     timer.it_value.tv_usec = 1000 * (after_ms % 1000); // microseconds
     timer.it_interval = timer.it_value;
+    setitimer(ITIMER_REAL, &timer, nullptr);
     return;
 }
 
@@ -234,8 +243,6 @@ void RaftServiceImpl::ConvertToLeader(){
             continue;
         }
         // send request to server_id
-
-        
     }
 }
 
