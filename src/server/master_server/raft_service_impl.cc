@@ -136,6 +136,8 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
 
     // TODO: handle election timeout
 
+    reset_election_timeout();
+
 
     // If the log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm, reject the request
 
