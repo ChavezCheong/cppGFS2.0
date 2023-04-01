@@ -4,6 +4,9 @@
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/config_manager.h"
 #include "src/common/protocol_client/raft_service_client.h"
+#include "absl/container/flat_hash_map.h"
+#include "src/common/utils.h"
+
 using protos::grpc::LogEntry;
 
 namespace gfs{

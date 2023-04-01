@@ -19,10 +19,10 @@ void RaftServiceImpl::Initialize(){
     signal(SIGALRM, &HandleSignal);
     alarmHandlerServer = this;
     std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
-    for(&auto server_name : all_servers){
-        config_manager_->GetServerAddress(server_name,
+    for(auto server_name : all_servers){
+        auto server_address = config_manager_->GetServerAddress(server_name,
                                           /*resolve_hostname=*/true);
-        masterServerClients[server_address] =         
+        masterServerClients[server_name] =         
         std::make_shared<RaftServiceClient>(
             grpc::CreateChannel(server_address,
                                 grpc::InsecureChannelCredentials()));
@@ -202,10 +202,7 @@ void RaftServiceImpl::ConvertToCandidate(){
 
     std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
 
-    for(int server_id = 0; server_id < numServers; server_id++){
-        if(server_id == serverId){
-            continue;
-        }
+    for(auto server_name : all_servers){
 
         // TODO: use config manager to get the master address, then send a request vote RPC to it
 
@@ -271,7 +268,6 @@ void RaftServiceImpl::ConvertToLeader(){
         // send request to server_id
     }
 }
-
 
 }
 }
