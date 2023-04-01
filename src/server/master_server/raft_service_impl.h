@@ -1,7 +1,8 @@
-#ifndef GFS_SERVER_MASTER_SERVER_RAFT_CONSENSUS_H_
-#define GFS_SERVER_MASTER_SERVER_RAFT_CONSENSUS_H_
+#ifndef GFS_SERVER_MASTER_SERVER_RAFT_SERVICE_IMPL_H_
+#define GFS_SERVER_MASTER_SERVER_RAFT_SERVICE_IMPL_H_
 
 #include "src/protos/grpc/raft_service.grpc.pb.h"
+#include "src/common/config_manager.h"
 using protos::grpc::LogEntry;
 
 namespace gfs{
@@ -12,8 +13,10 @@ namespace service{
 class RaftServiceImpl final 
     : public protos::grpc::RaftService::Service {
 public:
-    RaftServiceImpl();
-
+    RaftServiceImpl(common::ConfigManager* config_manager) : config_manager_(config_manager) {};
+    enum State {Follower, Candidate, Leader};
+    void AlarmCallback();
+    void Initialize();
 
 private:
     // Handle AppendEntries request sent by Raft server
@@ -33,15 +36,26 @@ private:
     void ConvertToCandidate();
     void ConvertToLeader();
 
+    State GetCurrentState();
+
+    void SetAlarm(int after_ms);
+    
+
+    void reset_election_timeout();
+
+    common::ConfigManager* config_manager_;
+
     // persistent state
     int currentTerm, votedFor;
     std::vector<LogEntry> log_;
 
+    const int numServers = 3;
+
     // volatile state on all servers
-    int commitIndex, lastApplied;
-    enum State {Follower, Candidate, Leader};
+    int commitIndex, lastApplied, currLeader, numVotes;
     State currState;
 
+    int serverId;
 
     // volatile state on leaders
     std::vector<int> nextIndex, matchIndex;

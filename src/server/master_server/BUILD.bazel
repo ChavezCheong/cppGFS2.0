@@ -88,6 +88,7 @@ cc_binary(
         ":chunk_server_heartbeat_monitor_task",
         ":master_chunk_server_manager_service_impl",
         ":master_metadata_service_impl",
+        ":raft_service_impl",
         "//src/common:config_manager",
         "//src/common:system_logger",
         "@com_google_absl//absl/flags:flag",
@@ -119,6 +120,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/common:system_logger",
-        "//src/protos/grpc:cc_raft_service_grpc"
+        "//src/common:config_manager",
+        "//src/protos/grpc:cc_raft_service_grpc",
     ]
 )

@@ -9,11 +9,13 @@
 #include "src/server/master_server/chunk_server_heartbeat_monitor_task.h"
 #include "src/server/master_server/master_chunk_server_manager_service_impl.h"
 #include "src/server/master_server/master_metadata_service_impl.h"
+#include "raft_service_impl.h"
 
 using gfs::common::ConfigManager;
 using gfs::server::ChunkServerHeartBeatMonitorTask;
 using gfs::service::MasterChunkServerManagerServiceImpl;
 using gfs::service::MasterMetadataServiceImpl;
+using gfs::service::RaftServiceImpl;
 using grpc::Server;
 using grpc::ServerBuilder;
 
@@ -58,6 +60,11 @@ int main(int argc, char** argv) {
   // Register a synchronous service for coordinating with chunkservers
   MasterChunkServerManagerServiceImpl chunk_server_mgr_service;
   builder.RegisterService(&chunk_server_mgr_service);
+
+  // Register a synchronous service for Raft fault tolerance
+  RaftServiceImpl raft_service(config);
+  raft_service.Initialize();
+  builder.RegisterService(&raft_service);
 
   // Assemble and start the server
   std::unique_ptr<Server> server(builder.BuildAndStart());

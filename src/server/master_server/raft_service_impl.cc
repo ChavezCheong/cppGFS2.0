@@ -1,10 +1,39 @@
 #include "raft_service_impl.h"
-
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/system_logger.h"
+#include <csignal>
+
+using protos::grpc::RequestVoteRequest;
+using protos::grpc::AppendEntriesRequest;
 
 namespace gfs{
 namespace service{
+RaftServiceImpl* alarmHandlerServer;
+
+void HandleSignal(int signum) {
+    alarmHandlerServer->AlarmCallback();
+}
+
+void RaftServiceImpl::Initialize(){
+    signal(SIGALRM, &HandleSignal);
+    alarmHandlerServer = this;
+}
+
+
+void RaftServiceImpl::AlarmCallback() {
+
+}
+
+void RaftServiceImpl::SetAlarm(int after_ms) {
+    struct itimerval timer;
+    setitimer(ITIMER_REAL, &timer, nullptr);
+    timer.it_value.tv_sec = after_ms / 1000;
+    timer.it_value.tv_usec = 1000 * (after_ms % 1000); // microseconds
+    timer.it_interval = timer.it_value;
+    return;
+}
+
+
 
 
 grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
@@ -63,6 +92,14 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
         reply->set_success(false);
         return grpc::Status::OK; // might need to change this
     }
+    // increment term if RPC contains higher term and convert to follower
+    else if(request->term() > currentTerm){
+        // TODO: add some way to get current servers address for logging purposes
+        LOG(INFO) << "Server converting to follower ";
+        currentTerm = request->term();
+        ConvertToFollower();
+    }
+
 
     // TODO: handle election timeout
 
@@ -76,9 +113,9 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
     }
 
     // iterate over entry and append to the log
+    int index = prev_log_index + 1;
 
     for(const auto& entry : request->entries()){
-        int index = entry.index();
         int term = entry.term();
 
         // TODO: implement append entries logic here
@@ -90,33 +127,34 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
         }
 
         if(index >= log_.size()){
-            // add log entry to the log, not sure how to do this efficiently
+            log_.push_back(entry);
         }
 
         // If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
-
         if(request->leadercommit() > commitIndex){
             // log.size() - 1 is the index of last entry, might change depend on implementation
             commitIndex = std::min(request->leadercommit(), (uint32_t) log_.size() - 1);
 
         }
-
-
-        return grpc::Status::OK;
-
-
-        // TODO: Leader might send AppendEntries RPC after voting to convert Candidates to Follower
-        // TODO: Follower: If election timeout elapses without receiving AppendEntries
-        // RPC from current leader or granting vote to candidate: convert to candidate
-        // TODO: Follower: Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server; repeat during idle periods to prevent election timeouts 
-        // TODO: If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex
-        /*• If successful: update nextIndex and matchIndex for
-        follower (§5.3)
-        • If AppendEntries fails because of log inconsistency:
-        decrement nextIndex and retry
-        */
-        
     }
+
+    reply->set_success(true);
+    ConvertToFollower();
+    currLeader = request->leaderid();
+
+
+    // TODO: Follower: If election timeout elapses without receiving AppendEntries
+    // RPC from current leader or granting vote to candidate: convert to candidate
+    // TODO: Follower: Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server; repeat during idle periods to prevent election timeouts 
+    // TODO: If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex
+    /*• If successful: update nextIndex and matchIndex for
+    follower (§5.3)
+    • If AppendEntries fails because of log inconsistency:
+    decrement nextIndex and retry
+    */
+
+
+        
 
     // If the leader's commit index is greater than ours, update our commit index
 
@@ -131,12 +169,74 @@ void RaftServiceImpl::ConvertToFollower(){
 
 // TODO: implement logic here
 void RaftServiceImpl::ConvertToCandidate(){
+    // Once a server is converted to candidate, we increase the current term
+    currentTerm++;
+    numVotes = 0;
+    votedFor = serverId;
 
+    reset_election_timeout();
+
+    std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
+
+    for(int server_id = 0; server_id < numServers; server_id++){
+        if(server_id == serverId){
+            continue;
+        }
+
+        // TODO: use config manager to get the master address, then send a request vote RPC to it
+
+        RequestVoteRequest request;
+
+        request.set_term(currentTerm);
+        request.set_candidateid(votedFor);
+        request.set_lastlogterm(log_.back().term());
+        request.set_lastlogindex(log_.back().index());
+
+        // send request vote to the server
+
+        // SendRequest(request, server);
+
+        // TODO: create a client to communicate with the masters
+
+    }
+
+    // count the votes:
+
+    if(numVotes >= 2){
+        ConvertToLeader();
+    }
+}
+
+RaftServiceImpl::State RaftServiceImpl::GetCurrentState(){
+    return currState;
+}
+
+
+void RaftServiceImpl::reset_election_timeout(){
+    // TODO: add a Timer here
 }
 
 // TODO: implement logic here
 void RaftServiceImpl::ConvertToLeader(){
+    // Upon election, send empty AppendEntries RPC to all other servers
 
+    std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
+    AppendEntriesRequest request;
+
+    request.set_term(currentTerm);
+    request.set_leaderid(currLeader);
+    request.set_prevlogindex(log_.back().index());
+    request.set_prevlogterm(log_.back().term());
+    request.set_leadercommit(log_.back().index());
+
+    for(int server_id = 0; server_id < numServers; server_id++){
+        if(server_id == serverId){
+            continue;
+        }
+        // send request to server_id
+
+        
+    }
 }
 
 

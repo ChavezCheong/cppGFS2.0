@@ -76,3 +76,18 @@ cc_library(
         "@com_google_protobuf//:protobuf",
     ],
 )
+
+
+cc_library(
+    name = "raft_service_client",
+    srcs = ["raft_service_client.cc"],
+    hdrs = ["raft_service_client.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/common:utils",
+        "//src/protos/grpc:cc_raft_service_grpc",
+                "//src/protos/grpc:cc_chunk_server_control_service_grpc",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
