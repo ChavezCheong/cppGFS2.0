@@ -22,7 +22,18 @@ void RaftServiceImpl::Initialize(){
 
 
 void RaftServiceImpl::AlarmCallback() {
+    // TODO: Consider the state of the master and call appropriate function:
 
+    // - Candidate: election timeout -> resend RV and reset election timeout
+    // - Follower: If election timeout elapses without receiving AppendEntries
+        // RPC from current leader or granting vote to candidate: convert to candidate
+
+    if(currState == State::Candidate or currState == State::Follower){
+        ConvertToCandidate();
+    }
+    if(currState == State::Leader){
+        
+    }
 }
 
 void RaftServiceImpl::SetAlarm(int after_ms) {
@@ -70,8 +81,8 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
 
     // TODO: add timer for election to timeout when necessary
 
+    // reset election when 
     reset_election_timeout();
-
 
     return grpc::Status::OK;
 }
