@@ -2,6 +2,7 @@
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/system_logger.h"
 #include <csignal>
+#include <random>
 
 using protos::grpc::RequestVoteRequest;
 using protos::grpc::AppendEntriesRequest;
@@ -30,7 +31,18 @@ void RaftServiceImpl::Initialize(){
 
 
 void RaftServiceImpl::AlarmCallback() {
+    // TODO: Consider the state of the master and call appropriate function:
 
+    // - Candidate: election timeout -> resend RV and reset election timeout
+    // - Follower: If election timeout elapses without receiving AppendEntries
+        // RPC from current leader or granting vote to candidate: convert to candidate
+
+    if(currState == State::Candidate or currState == State::Follower){
+        ConvertToCandidate();
+    }
+    if(currState == State::Leader){
+        
+    }
 }
 
 void RaftServiceImpl::SetAlarm(int after_ms) {
@@ -79,6 +91,9 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     }
 
     // TODO: add timer for election to timeout when necessary
+
+    // reset election when 
+    reset_election_timeout();
 
     return grpc::Status::OK;
 }
@@ -163,7 +178,7 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
     */
 
 
-        
+    
 
     // If the leader's commit index is greater than ours, update our commit index
 
@@ -223,6 +238,17 @@ RaftServiceImpl::State RaftServiceImpl::GetCurrentState(){
 
 void RaftServiceImpl::reset_election_timeout(){
     // TODO: add a Timer here
+
+    int ELECTION_TIMEOUT_LOW = 150;
+    int ELECTION_TIMEOUT_HIGH = 500;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(ELECTION_TIMEOUT_LOW, ELECTION_TIMEOUT_HIGH);
+
+    float election_timeout_ = dis(gen);
+
+    SetAlarm(election_timeout_);
 }
 
 // TODO: implement logic here
