@@ -82,7 +82,7 @@ google::protobuf::util::Status ClientImpl::CreateFile(
   common::SetClientContextDeadline(client_context, config_manager_);
 
   // Issue OpenFileReply rpc and check status
-  auto primary_master_name(cache_manager_->GetPrimaryMaster());
+  auto primary_master_name(cache_manager_->GetPrimaryMaster().value());
   auto try_get_master(master_metadata_service_client_map_.TryGetValue(primary_master_name));
   StatusOr<OpenFileReply> open_file_or(
       try_get_master.first->SendRequest(open_file_request,
@@ -162,7 +162,7 @@ google::protobuf::util::Status ClientImpl::GetMetadataForChunk(
               << file_open_mode;
 
     // Issue OpenFileReply rpc and check status
-    auto primary_master_name(cache_manager_->GetPrimaryMaster());
+    auto primary_master_name(cache_manager_->GetPrimaryMaster().value());
     auto try_get_master(master_metadata_service_client_map_.TryGetValue(primary_master_name));
     StatusOr<OpenFileReply> open_file_or(
       try_get_master.first->SendRequest(open_file_request,
@@ -593,7 +593,7 @@ google::protobuf::util::Status ClientImpl::DeleteFile(
   grpc::ClientContext client_context;
   common::SetClientContextDeadline(client_context, config_manager_);
 
-  auto primary_master_name(cache_manager_->GetPrimaryMaster());
+  auto primary_master_name(cache_manager_->GetPrimaryMaster().value());
   auto try_get_master(master_metadata_service_client_map_.TryGetValue(primary_master_name));
   auto ret(try_get_master.first->SendRequest(delete_file_request));
   int count = 1;
@@ -653,8 +653,8 @@ ClientImpl::ClientImpl(common::ConfigManager* config_manager,
       config_manager_->GetClientCacheTimeout());
 
   // Instantiate the master service client hashmap
-  for (std::string& server_name : config->GetAllMasterServers()) {
-    std::string& server_address(config->GetServerAddress(server_name));
+  for (std::string& server_name : config_manager_->GetAllMasterServers()) {
+    std::string server_address = config_manager_->GetServerAddress(server_name);
     RegisterMasterMetadataServiceClient(server_name, server_address);
   }
 }

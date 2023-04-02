@@ -51,6 +51,8 @@ class ClientImpl {
              const std::string& master_name, 
              const bool resolve_hostname = false);
 
+    void RegisterMasterMetadataServiceClient(const std::string& server_name, const std::string& server_address);
+
   // Internal function to cache file chunk metadata returned by master
   void cache_file_chunk_metadata(
       const std::string& filename,

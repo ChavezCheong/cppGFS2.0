@@ -237,8 +237,8 @@ void RaftServiceImpl::ConvertToCandidate(){
     }
 
     // count the votes
-    for(int i = 0, i < all_servers.size(); ++i){
-        auto request_vote_result = request_vote_results[i];
+    for(int i = 0; i < all_servers.size(); ++i){
+        auto request_vote_result = request_vote_results[i].get();
         auto server_name = request_vote_result.first;
         auto request_vote_reply = request_vote_result.second;
 
@@ -248,7 +248,7 @@ void RaftServiceImpl::ConvertToCandidate(){
             // if outdated term, convert to follower
             if(reply.term() > currentTerm){
                 LOG(INFO) << "Server converting to follower ";
-                currentTerm = reply->term();
+                currentTerm = reply.term();
                 ConvertToFollower();
                 return;
             }

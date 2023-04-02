@@ -1,6 +1,8 @@
 #ifndef GFS_CLIENT_CLIENT_CACHE_MANAGER_H_
 #define GFS_CLIENT_CLIENT_CACHE_MANAGER_H_
 
+#include <string>
+
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/time/time.h"
@@ -113,7 +115,7 @@ class CacheManager {
   // Return an initialized CacheManager with a configured timeout
   static CacheManager* ConstructCacheManager(const absl::Duration timeout);
 
-  google::protobuf::util::StatusOr<std::string> CacheManager::GetPrimaryMaster();
+  google::protobuf::util::StatusOr<std::string> GetPrimaryMaster();
 
   google::protobuf::util::Status SetPrimaryMaster(std::string primary_master_name);
 
@@ -141,7 +143,7 @@ class CacheManager {
       chunk_server_location_;
 
   // Stores the name of primary master server
-  absl::std::string primary_master_;
+  std::string primary_master_;
 };
 
 } // namespace client

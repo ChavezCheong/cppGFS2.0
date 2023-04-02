@@ -103,7 +103,7 @@ CacheManager* CacheManager::ConstructCacheManager(
 
 google::protobuf::util::StatusOr<std::string> CacheManager::GetPrimaryMaster() {
   if (primary_master_.empty()) {
-    return "master_server_01";
+    return std::string("master_server_01");
   }
 
   return primary_master_;
