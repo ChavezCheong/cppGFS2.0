@@ -243,9 +243,22 @@ void RaftServiceImpl::ConvertToCandidate(){
         auto request_vote_reply = request_vote_result.second;
 
         // logic to handle votes
+        if (request_vote_reply.ok()){
+            auto reply = request_vote_reply.value();
+            // if outdated term, convert to follower
+            if(reply.term() > currentTerm){
+                LOG(INFO) << "Server converting to follower ";
+                currentTerm = reply->term();
+                ConvertToFollower();
+                return;
+            }
+            else if (reply.votegranted()){
+                numVotes++;
+            }
+        }
     }
 
-
+    // TODO: CHANGE THIS TO CALCULATED QUORUM
     if(numVotes >= 2){
         ConvertToLeader();
     }
