@@ -2,9 +2,19 @@
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/system_logger.h"
 #include <csignal>
+#include <random>
+#include <future>
+#include <utility>
+#include <vector>
 
 using protos::grpc::RequestVoteRequest;
 using protos::grpc::AppendEntriesRequest;
+using protos::grpc::RequestVoteReply;
+using protos::grpc::AppendEntriesReply;
+using google::protobuf::util::Status;
+using google::protobuf::util::StatusOr;
+
+
 
 namespace gfs{
 namespace service{
@@ -17,19 +27,39 @@ void HandleSignal(int signum) {
 void RaftServiceImpl::Initialize(){
     signal(SIGALRM, &HandleSignal);
     alarmHandlerServer = this;
+    std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
+    for(auto server_name : all_servers){
+        auto server_address = config_manager_->GetServerAddress(server_name,
+                                          /*resolve_hostname=*/true);
+        masterServerClients[server_name] =         
+        std::make_shared<RaftServiceClient>(
+            grpc::CreateChannel(server_address,
+                                grpc::InsecureChannelCredentials()));
+    }
 }
 
 
 void RaftServiceImpl::AlarmCallback() {
+    // TODO: Consider the state of the master and call appropriate function:
 
+    // - Candidate: election timeout -> resend RV and reset election timeout
+    // - Follower: If election timeout elapses without receiving AppendEntries
+        // RPC from current leader or granting vote to candidate: convert to candidate
+
+    if(currState == State::Candidate or currState == State::Follower){
+        ConvertToCandidate();
+    }
+    if(currState == State::Leader){
+        
+    }
 }
 
 void RaftServiceImpl::SetAlarm(int after_ms) {
     struct itimerval timer;
-    setitimer(ITIMER_REAL, &timer, nullptr);
     timer.it_value.tv_sec = after_ms / 1000;
     timer.it_value.tv_usec = 1000 * (after_ms % 1000); // microseconds
     timer.it_interval = timer.it_value;
+    setitimer(ITIMER_REAL, &timer, nullptr);
     return;
 }
 
@@ -71,6 +101,9 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
 
     // TODO: add timer for election to timeout when necessary
 
+    // reset election when 
+    reset_election_timeout();
+
     return grpc::Status::OK;
 }
 
@@ -102,6 +135,7 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
 
 
     // TODO: handle election timeout
+    reset_election_timeout();
 
 
     // If the log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm, reject the request
@@ -154,7 +188,7 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
     */
 
 
-        
+    
 
     // If the leader's commit index is greater than ours, update our commit index
 
@@ -177,30 +211,40 @@ void RaftServiceImpl::ConvertToCandidate(){
     reset_election_timeout();
 
     std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
+    // Send the requests in parallel
+    std::vector<
+        std::future<std::pair<std::string, StatusOr<RequestVoteReply>>>>
+        request_vote_results;
 
-    for(int server_id = 0; server_id < numServers; server_id++){
-        if(server_id == serverId){
-            continue;
-        }
+    for(auto server_name : all_servers){
+        //TODO: CRITICAL FIX: DONT SEND TO YOURSELF EDIT THIS WHEN YOU ADD YOUR OWN SERVER NAME
+        request_vote_results.push_back(
+            std::async(std::launch::async, [&, server_name](){
+                RequestVoteRequest request;
 
-        // TODO: use config manager to get the master address, then send a request vote RPC to it
+                request.set_term(currentTerm);
+                request.set_candidateid(votedFor);
+                request.set_lastlogterm(log_.back().term());
+                request.set_lastlogindex(log_.back().index());
 
-        RequestVoteRequest request;
+                auto client = masterServerClients[server_name];
 
-        request.set_term(currentTerm);
-        request.set_candidateid(votedFor);
-        request.set_lastlogterm(log_.back().term());
-        request.set_lastlogindex(log_.back().index());
+                auto request_vote_reply = client->SendRequest(request);
 
-        // send request vote to the server
-
-        // SendRequest(request, server);
-
-        // TODO: create a client to communicate with the masters
-
+                return std::pair<std::string, StatusOr<RequestVoteReply>>(
+                    server_name, request_vote_reply);
+        }));
     }
 
-    // count the votes:
+    // count the votes
+    for(int i = 0, i < all_servers.size(); ++i){
+        auto request_vote_result = request_vote_results[i];
+        auto server_name = request_vote_result.first;
+        auto request_vote_reply = request_vote_result.second;
+
+        // logic to handle votes
+    }
+
 
     if(numVotes >= 2){
         ConvertToLeader();
@@ -214,6 +258,17 @@ RaftServiceImpl::State RaftServiceImpl::GetCurrentState(){
 
 void RaftServiceImpl::reset_election_timeout(){
     // TODO: add a Timer here
+
+    int ELECTION_TIMEOUT_LOW = 150;
+    int ELECTION_TIMEOUT_HIGH = 500;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(ELECTION_TIMEOUT_LOW, ELECTION_TIMEOUT_HIGH);
+
+    float election_timeout_ = dis(gen);
+
+    SetAlarm(election_timeout_);
 }
 
 // TODO: implement logic here
@@ -229,16 +284,24 @@ void RaftServiceImpl::ConvertToLeader(){
     request.set_prevlogterm(log_.back().term());
     request.set_leadercommit(log_.back().index());
 
-    for(int server_id = 0; server_id < numServers; server_id++){
-        if(server_id == serverId){
-            continue;
-        }
-        // send request to server_id
+    std::vector<
+        std::future<std::pair<std::string, StatusOr<AppendEntriesReply>>>>
+        append_entries_results;
 
-        
+    for(auto server_name : all_servers){
+        //TODO: CRITICAL FIX: DONT SEND TO YOURSELF EDIT THIS WHEN YOU ADD YOUR OWN SERVER NAME
+        append_entries_results.push_back(
+            std::async(std::launch::async, [&, server_name](){
+
+                auto client = masterServerClients[server_name];
+
+                auto append_entries_reply = client->SendRequest(request);
+
+                return std::pair<std::string, StatusOr<AppendEntriesReply>>(
+                    server_name, append_entries_reply);
+        }));
     }
 }
-
 
 }
 }
