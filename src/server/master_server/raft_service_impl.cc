@@ -135,7 +135,6 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
 
 
     // TODO: handle election timeout
-
     reset_election_timeout();
 
 
@@ -237,7 +236,15 @@ void RaftServiceImpl::ConvertToCandidate(){
         }));
     }
 
-    // count the votes:
+    // count the votes
+    for(int i = 0, i < all_servers.size(); ++i){
+        auto request_vote_result = request_vote_results[i];
+        auto server_name = request_vote_result.first;
+        auto request_vote_reply = request_vote_result.second;
+
+        // logic to handle votes
+    }
+
 
     if(numVotes >= 2){
         ConvertToLeader();
