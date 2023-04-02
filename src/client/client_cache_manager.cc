@@ -101,5 +101,18 @@ CacheManager* CacheManager::ConstructCacheManager(
   return new CacheManager(timeout);
 }
 
+google::protobuf::util::StatusOr<std::string> CacheManager::GetPrimaryMaster() {
+  if (primary_master_.empty()) {
+    return "master_server_01";
+  }
+
+  return primary_master_;
+}
+
+google::protobuf::util::Status CacheManager::SetPrimaryMaster(
+    std::string primary_master_name) {
+  primary_master_ = primary_master_name;
+  return OkStatus();
+}
 }  // namespace client
 }  // namespace gfs

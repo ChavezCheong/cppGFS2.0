@@ -82,14 +82,26 @@ google::protobuf::util::Status ClientImpl::CreateFile(
   common::SetClientContextDeadline(client_context, config_manager_);
 
   // Issue OpenFileReply rpc and check status
+  auto primary_master_name(cache_manager_->GetPrimaryMaster());
+  auto try_get_master(master_metadata_service_client_map_.TryGetValue(primary_master_name));
   StatusOr<OpenFileReply> open_file_or(
-      master_metadata_service_client_->SendRequest(open_file_request,
-                                                   client_context));
+      try_get_master.first->SendRequest(open_file_request,
+                                        client_context));
 
+  int count = 1;
+  std::string master_name = "master_server_0";
+  while (!open_file_or.ok() && count <= 3) {
+    primary_master_name = master_name + std::to_string(count);
+    try_get_master = master_metadata_service_client_map_.TryGetValue(primary_master_name);
+    open_file_or = 
+      try_get_master.first->SendRequest(open_file_request,
+                                        client_context);
+    count ++;                            
+  }
   if (!open_file_or.ok()) {
     return open_file_or.status();
   }
-
+  cache_manager_->SetPrimaryMaster(primary_master_name);
   // The master creates the first chunk for this file, and the client
   // should cache the FileChunkMetadata for this chunk
   cache_file_chunk_metadata(filename, 0, open_file_or.value());
@@ -150,16 +162,28 @@ google::protobuf::util::Status ClientImpl::GetMetadataForChunk(
               << file_open_mode;
 
     // Issue OpenFileReply rpc and check status
+    auto primary_master_name(cache_manager_->GetPrimaryMaster());
+    auto try_get_master(master_metadata_service_client_map_.TryGetValue(primary_master_name));
     StatusOr<OpenFileReply> open_file_or(
-        master_metadata_service_client_->SendRequest(open_file_request,
-                                                     client_context));
+      try_get_master.first->SendRequest(open_file_request,
+                                        client_context));
 
+    int count = 1;
+    std::string master_name = "master_server_0";
+    while (!open_file_or.ok() && count <= 3) {
+      primary_master_name = master_name + std::to_string(count);
+      try_get_master = master_metadata_service_client_map_.TryGetValue(primary_master_name);
+      open_file_or = try_get_master.first->SendRequest(open_file_request,client_context);
+      count ++;                            
+    }
+  
     // Handle error
     if (!open_file_or.ok()) {
       LOG(ERROR) << "OpenFileRequest failed due to "
                  << open_file_or.status().message();
       return open_file_or.status();
     }
+    cache_manager_->SetPrimaryMaster(primary_master_name);
 
     // Cache file chunk metadata
     auto open_file_reply(open_file_or.value());
@@ -568,7 +592,20 @@ google::protobuf::util::Status ClientImpl::DeleteFile(
   delete_file_request.set_filename(filename);
   grpc::ClientContext client_context;
   common::SetClientContextDeadline(client_context, config_manager_);
-  return master_metadata_service_client_->SendRequest(delete_file_request);
+
+  auto primary_master_name(cache_manager_->GetPrimaryMaster());
+  auto try_get_master(master_metadata_service_client_map_.TryGetValue(primary_master_name));
+  auto ret(try_get_master.first->SendRequest(delete_file_request));
+  int count = 1;
+  std::string master_name = "master_server_0";
+  while (!ret.ok() && count <= 3) {
+    primary_master_name = master_name + std::to_string(count);
+    try_get_master = master_metadata_service_client_map_.TryGetValue(primary_master_name);
+    ret = try_get_master.first->SendRequest(delete_file_request);
+    count ++;                            
+  }
+  cache_manager_->SetPrimaryMaster(primary_master_name);
+  return ret; 
 }
 
 void ClientImpl::RegisterChunkServerServiceClient(
@@ -617,17 +654,18 @@ ClientImpl::ClientImpl(common::ConfigManager* config_manager,
 
   // Instantiate the master service client hashmap
   for (std::string& server_name : config->GetAllMasterServers()) {
-    RegisterMasterMetadataServiceClient(server_name);
+    std::string& server_address(config->GetServerAddress(server_name));
+    RegisterMasterMetadataServiceClient(server_name, server_address);
   }
 }
 
 void ClientImpl::RegisterMasterMetadataServiceClient(
-    const std::string& server_address) {
+    const std::string& server_name, const std::string& server_address) {
   LOG(INFO) << "Establishing new connection to master metadata service client: "
-            << server_address;
+            << server_name;
             
   master_metadata_service_client_map_.TryInsert(
-      server_address,
+      server_name,
       std::make_shared<service::MasterMetadataServiceClient>(
         grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials())
       ));

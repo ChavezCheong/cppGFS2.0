@@ -113,6 +113,10 @@ class CacheManager {
   // Return an initialized CacheManager with a configured timeout
   static CacheManager* ConstructCacheManager(const absl::Duration timeout);
 
+  google::protobuf::util::StatusOr<std::string> CacheManager::GetPrimaryMaster();
+
+  google::protobuf::util::Status SetPrimaryMaster(std::string primary_master_name);
+
  private:
   CacheManager() = default;
   CacheManager(const absl::Duration timeout) : timeout_(timeout) {}
@@ -135,6 +139,9 @@ class CacheManager {
   // Map from (chunk_handle) to chunk server locations
   absl::flat_hash_map<std::string, ChunkServerLocationEntry> 
       chunk_server_location_;
+
+  // Stores the name of primary master server
+  absl::std::string primary_master_;
 };
 
 } // namespace client

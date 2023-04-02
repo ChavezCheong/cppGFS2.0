@@ -17,7 +17,41 @@ services:
     volumes:
       - ./:/app
     restart: unless-stopped
-  # Start chunk server #1 on port 50052
+  # Start master server #2 on port 50052
+  master_server_02:
+    container_name: master_server_02
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gfs-image
+    command: bazel run src/server/master_server:run_master_server_main --
+      --config_path=data/config.yml
+      --use_docker_dns_server
+      --master_name=master_server_02
+    working_dir: /app
+    ports:
+      - 50052:50052
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+  # Start master server #3 on port 50053
+  master_server_03:
+    container_name: master_server_03
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gfs-image
+    command: bazel run src/server/master_server:run_master_server_main --
+      --config_path=data/config.yml
+      --use_docker_dns_server
+      --master_name=master_server_03
+    working_dir: /app
+    ports:
+      - 50053:50053
+    volumes:
+      - ./:/app
+    restart: unless-stopped
+  # Start chunk server #1 on port 50054
   chunk_server_01:
     container_name: chunk_server_01
     image: gfs-image
@@ -26,14 +60,16 @@ services:
       --use_docker_dns_server
       --chunk_server_name=chunk_server_01
     ports:
-      - 50052:50052
+      - 50054:50054
     depends_on:
       - master_server_01
+      - master_server_02
+      - master_server_03
     working_dir: /app
     volumes:
       - ./:/app
     restart: unless-stopped
-  # Start chunk server #2 on port 50053
+  # Start chunk server #2 on port 50055
   chunk_server_02:
     container_name: chunk_server_02
     image: gfs-image
@@ -42,14 +78,16 @@ services:
       --use_docker_dns_server
       --chunk_server_name=chunk_server_02
     ports:
-      - 50053:50053
+      - 50055:50055
     depends_on:
       - master_server_01
+      - master_server_02
+      - master_server_03
     working_dir: /app
     volumes:
       - ./:/app
     restart: unless-stopped
-  # Start chunk server #3 on port 50054
+  # Start chunk server #3 on port 50056
   chunk_server_03:
     container_name: chunk_server_03
     image: gfs-image
@@ -58,9 +96,11 @@ services:
       --use_docker_dns_server
       --chunk_server_name=chunk_server_03
     ports:
-      - 50054:50054
+      - 50056:50056
     depends_on:
       - master_server_01
+      - master_server_02
+      - master_server_03
     working_dir: /app
     volumes:
       - ./:/app
