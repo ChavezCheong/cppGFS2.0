@@ -21,7 +21,7 @@ public:
     RaftServiceImpl(common::ConfigManager* config_manager) : config_manager_(config_manager) {};
     enum State {Follower, Candidate, Leader};
     void AlarmCallback();
-    void Initialize();
+    void Initialize(std::string master_name);
 
 private:
     // Handle AppendEntries request sent by Raft server
@@ -41,8 +41,6 @@ private:
     void ConvertToCandidate();
     void ConvertToLeader();
 
-    void SendAppendEntries();
-
     State GetCurrentState();
 
     void SetAlarm(int after_ms);
@@ -50,8 +48,11 @@ private:
 
     void reset_election_timeout();
 
+    protos::grpc::AppendEntriesRequest createAppendEntriesRequest(std::string server_name);
+
     common::ConfigManager* config_manager_;
 
+    std::vector<std::string> all_servers;
     gfs::common::thread_safe_flat_hash_map<std::string, std::shared_ptr<gfs::service::RaftServiceClient>> masterServerClients;
 
     // persistent state
@@ -67,7 +68,7 @@ private:
     int serverId;
 
     // volatile state on leaders
-    std::vector<int> nextIndex, matchIndex;
+    gfs::common::thread_safe_flat_hash_map<std::string, int> nextIndex, matchIndex;
 
     // persistent storage for raft service log
     RaftServiceLogManager* raft_service_log_manager_;

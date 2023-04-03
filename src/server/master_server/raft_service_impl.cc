@@ -6,6 +6,7 @@
 #include <future>
 #include <utility>
 #include <vector>
+#include <deque>
 
 using protos::grpc::RequestVoteRequest;
 using protos::grpc::AppendEntriesRequest;
@@ -13,6 +14,7 @@ using protos::grpc::RequestVoteReply;
 using protos::grpc::AppendEntriesReply;
 using google::protobuf::util::Status;
 using google::protobuf::util::StatusOr;
+using protos::grpc::LogEntry;
 
 
 
@@ -24,10 +26,18 @@ void HandleSignal(int signum) {
     alarmHandlerServer->AlarmCallback();
 }
 
-void RaftServiceImpl::Initialize(){
+void RaftServiceImpl::Initialize(std::string master_name){
     signal(SIGALRM, &HandleSignal);
     alarmHandlerServer = this;
-    std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
+
+    // get all servers that are not ourselves
+    std::vector<std::string> all_master_servers = config_manager_->GetAllMasterServers();
+    for(auto server: all_master_servers){
+        if(server != master_name){
+            all_servers.push_back(server);
+        }
+    }
+
     for(auto server_name : all_servers){
         auto server_address = config_manager_->GetServerAddress(server_name,
                                           /*resolve_hostname=*/true);
@@ -36,6 +46,7 @@ void RaftServiceImpl::Initialize(){
             grpc::CreateChannel(server_address,
                                 grpc::InsecureChannelCredentials()));
     }
+    currState = State::Candidate;
 
     // Set up raft service log manager for use
     raft_service_log_manager_ = RaftServiceLogManager::GetInstance();
@@ -53,7 +64,8 @@ void RaftServiceImpl::AlarmCallback() {
         ConvertToCandidate();
     }
     if(currState == State::Leader){
-        
+        SendAppendEntries();
+        reset_election_timeout();
     }
 }
 
@@ -206,6 +218,7 @@ void RaftServiceImpl::ConvertToFollower(){
 
 // TODO: implement logic here
 void RaftServiceImpl::ConvertToCandidate(){
+    currState = State::Candidate;
     // Once a server is converted to candidate, we increase the current term
     currentTerm++;
     numVotes = 0;
@@ -213,14 +226,12 @@ void RaftServiceImpl::ConvertToCandidate(){
 
     reset_election_timeout();
 
-    std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
     // Send the requests in parallel
     std::vector<
         std::future<std::pair<std::string, StatusOr<RequestVoteReply>>>>
         request_vote_results;
 
     for(auto server_name : all_servers){
-        //TODO: CRITICAL FIX: DONT SEND TO YOURSELF EDIT THIS WHEN YOU ADD YOUR OWN SERVER NAME
         request_vote_results.push_back(
             std::async(std::launch::async, [&, server_name](){
                 RequestVoteRequest request;
@@ -289,40 +300,73 @@ void RaftServiceImpl::reset_election_timeout(){
 
 // TODO: implement logic here
 void RaftServiceImpl::ConvertToLeader(){
+    currState = State::Leader;
+
+    // initialize nextIndex and matchIndex
+    for(std::string server_name : all_servers){
+        nextIndex[server_name] = log_.size();
+        matchIndex[server_name] = 0;
+    }
+
+
     // Upon election, send empty AppendEntries RPC to all other servers
     SendAppendEntries();
     // TODO: make a function that resets heartbeat timeout
     reset_election_timeout();
 }
 
+
 void RaftServiceImpl::SendAppendEntries(){
-    std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
-    AppendEntriesRequest request;
 
-    request.set_term(currentTerm);
-    request.set_leaderid(currLeader);
-    request.set_prevlogindex(log_.back().index());
-    request.set_prevlogterm(log_.back().term());
-    request.set_leadercommit(log_.back().index());
-
-    std::vector<
+    std::deque<
         std::future<std::pair<std::string, StatusOr<AppendEntriesReply>>>>
         append_entries_results;
 
     for(auto server_name : all_servers){
-        //TODO: CRITICAL FIX: DONT SEND TO YOURSELF EDIT THIS WHEN YOU ADD YOUR OWN SERVER NAME
         append_entries_results.push_back(
             std::async(std::launch::async, [&, server_name](){
-
+                // create reply and send
+                AppendEntriesRequest request = createAppendEntriesRequest(server_name);
                 auto client = masterServerClients[server_name];
-
                 auto append_entries_reply = client->SendRequest(request);
 
                 return std::pair<std::string, StatusOr<AppendEntriesReply>>(
                     server_name, append_entries_reply);
         }));
     }
+
+    while(!append_entries_results.empty()){
+        std::pair<std::string, StatusOr<AppendEntriesReply>> append_entries_result = append_entries_results.front().get();
+        std::string server_name = append_entries_result.first;
+        StatusOr<AppendEntriesReply> append_entries_reply = append_entries_result.second;
+
+    }
+
 }
+
+protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(std::string server_name){
+    AppendEntriesRequest request;
+    request.set_term(currentTerm);
+    request.set_leaderid(currLeader);
+
+    int prev_log_index = nextIndex[server_name] - 1;
+
+    //index of log entry immediately preceding new ones
+    request.set_prevlogindex(prev_log_index);
+
+    // term of prevLogIndex entry
+    request.set_prevlogterm(log_[prev_log_index].term());
+
+    request.set_leadercommit(commitIndex);
+
+    // log entries to store
+    for(int j = prev_log_index + 1; j < log_.size(); j++){
+        LogEntry* entry = request.add_entries();
+    }
+
+    return request;
+}
+
 
 }
 }

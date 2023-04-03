@@ -73,7 +73,7 @@ int main(int argc, char **argv)
 
   // Register a synchronous service for Raft fault tolerance
   RaftServiceImpl raft_service(config);
-  raft_service.Initialize();
+  raft_service.Initialize(master_name);
   builder.RegisterService(&raft_service);
 
   // Assemble and start the server

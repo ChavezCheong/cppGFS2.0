@@ -126,6 +126,8 @@ cc_library(
         "//src/common/protocol_client:raft_service_client",
         "@com_google_absl//absl/container:flat_hash_map",
         "//src/common:utils",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
     ]
 )
 
