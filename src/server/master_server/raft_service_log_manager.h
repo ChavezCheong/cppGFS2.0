@@ -46,6 +46,11 @@ class RaftServiceLogManager {
     std::unique_ptr<leveldb::DB> raft_service_log_database_;
 
     RaftServiceLogManager();
+
+    private:
+
+    leveldb::WriteOptions write_options_;
+    leveldb::ReadOptions read_options_;
 };
 
 }  // namespace server

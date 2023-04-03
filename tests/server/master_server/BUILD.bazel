@@ -63,3 +63,13 @@ cc_test(
         "@com_google_test//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "raft_service_log_manager_test",
+    srcs = ["raft_service_log_manager_test.cc"],
+    deps = [
+        "//src/server/master_server:raft_service_log_manager",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_test//:gtest_main",
+    ],
+)
