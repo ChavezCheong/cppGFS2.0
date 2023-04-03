@@ -4,6 +4,7 @@
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/config_manager.h"
 #include "src/common/protocol_client/raft_service_client.h"
+#include "src/server/master_server/raft_service_log_manager.h"
 #include "absl/container/flat_hash_map.h"
 #include "src/common/utils.h"
 
@@ -67,6 +68,9 @@ private:
 
     // volatile state on leaders
     std::vector<int> nextIndex, matchIndex;
+
+    // persistent storage for raft service log
+    RaftServiceLogManager* raft_service_log_manager_;
 
 };
 

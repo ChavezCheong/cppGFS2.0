@@ -121,9 +121,27 @@ cc_library(
     deps = [
         "//src/common:system_logger",
         "//src/common:config_manager",
+        ":raft_service_log_manager",
         "//src/protos/grpc:cc_raft_service_grpc",
         "//src/common/protocol_client:raft_service_client",
         "@com_google_absl//absl/container:flat_hash_map",
         "//src/common:utils",
     ]
+)
+
+cc_library(
+    name = "raft_service_log_manager",
+    srcs = ["raft_service_log_manager.cc"],
+    hdrs = ["raft_service_log_manager.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/common:system_logger",
+        "//src/protos:cc_chunk_server_proto",
+        "//src/protos:cc_metadata_proto",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/strings",
+        "@com_google_leveldb//:leveldb",
+        "//src/protos/grpc:cc_raft_service_grpc",
+        "//src/common/protocol_client:raft_service_client",
+    ],
 )

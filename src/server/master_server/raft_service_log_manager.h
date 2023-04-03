@@ -11,7 +11,7 @@
 
 namespace gfs {
 
-namespace server {
+namespace service {
 
 
 using google::protobuf::util::StatusOr;
@@ -46,9 +46,14 @@ class RaftServiceLogManager {
     std::unique_ptr<leveldb::DB> raft_service_log_database_;
 
     RaftServiceLogManager();
+
+    private:
+
+    leveldb::WriteOptions write_options_;
+    leveldb::ReadOptions read_options_;
 };
 
-}  // namespace server
+}  // namespace service
 }  // namespace gfs
 
-#endif  // GFS_SERVER_CHUNK_SERVER_FILE_CHUNK_MANAGER_H_
+#endif  // GFS_RAFT_SERVICE_LOG_MANAGER_H_

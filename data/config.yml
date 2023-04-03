@@ -53,6 +53,9 @@ disk:
     chunk_server_01: data/gfs_db_chunk_server_01
     chunk_server_02: data/gfs_db_chunk_server_02
     chunk_server_03: data/gfs_db_chunk_server_03
+    master_server_01: data/gfs_db_master_server_01
+    master_server_02: data/gfs_db_master_server_02
+    master_server_03: data/gfs_db_master_server_03
 timeout:
   # The valid suffixes are "ns", "us" "ms", "s", "m", and "h".
   grpc: 10s

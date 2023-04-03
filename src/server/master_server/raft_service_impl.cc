@@ -36,6 +36,9 @@ void RaftServiceImpl::Initialize(){
             grpc::CreateChannel(server_address,
                                 grpc::InsecureChannelCredentials()));
     }
+
+    // Set up raft service log manager for use
+    raft_service_log_manager_ = RaftServiceLogManager::GetInstance();
 }
 
 
