@@ -46,10 +46,11 @@ void RaftServiceImpl::Initialize(std::string master_name){
             grpc::CreateChannel(server_address,
                                 grpc::InsecureChannelCredentials()));
     }
-    currState = State::Candidate;
-
     // Set up raft service log manager for use
     raft_service_log_manager_ = RaftServiceLogManager::GetInstance();
+    LOG(INFO) << "Starting Raft Service";
+    currState = State::Candidate;
+    SetAlarm(150); // TODO: change this setup 
 }
 
 
@@ -85,6 +86,8 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     const protos::grpc::RequestVoteRequest* request,
     protos::grpc::RequestVoteReply* reply){
     // TODO: implement logic here
+
+    LOG(INFO) << "Handle Request Vote RPC from" << request->candidateid();
 
     reply->set_term(currentTerm);
     reply->set_votegranted(false);
@@ -224,6 +227,8 @@ void RaftServiceImpl::ConvertToCandidate(){
     numVotes = 0;
     votedFor = serverId;
 
+    LOG(INFO) << "Server convert to candidate";
+
     reset_election_timeout();
 
     // Send the requests in parallel
@@ -231,7 +236,8 @@ void RaftServiceImpl::ConvertToCandidate(){
         std::future<std::pair<std::string, StatusOr<RequestVoteReply>>>>
         request_vote_results;
 
-    for(auto server_name : all_servers){
+    for(auto server_name : all_servers){        
+        LOG(INFO) << "Sending request vote RPC to server" << server_name;
         request_vote_results.push_back(
             std::async(std::launch::async, [&, server_name](){
                 RequestVoteRequest request;
@@ -313,6 +319,7 @@ void RaftServiceImpl::ConvertToLeader(){
     SendAppendEntries();
     // TODO: make a function that resets heartbeat timeout
     reset_election_timeout();
+    LOG(INFO) << "Server converts to leader";
 }
 
 
@@ -323,6 +330,7 @@ void RaftServiceImpl::SendAppendEntries(){
         append_entries_results;
 
     for(auto server_name : all_servers){
+        LOG(INFO) << "Sending an empty AppendEntries RPC upon election to server" << server_name;
         append_entries_results.push_back(
             std::async(std::launch::async, [&, server_name](){
                 // create reply and send
