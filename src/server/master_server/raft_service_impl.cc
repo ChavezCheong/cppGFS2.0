@@ -39,8 +39,9 @@ void RaftServiceImpl::Initialize(){
 
     // Set up raft service log manager for use
     raft_service_log_manager_ = RaftServiceLogManager::GetInstance();
-
+    LOG(INFO) << "Starting Raft Service";
     currState = State::Candidate;
+    SetAlarm(150); // TODO: change this setup 
 }
 
 
@@ -75,6 +76,8 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     const protos::grpc::RequestVoteRequest* request,
     protos::grpc::RequestVoteReply* reply){
     // TODO: implement logic here
+
+    LOG(INFO) << "Handle Request Vote RPC from" << request->candidateid();
 
     reply->set_term(currentTerm);
     reply->set_votegranted(false);
