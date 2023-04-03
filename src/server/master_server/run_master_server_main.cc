@@ -51,7 +51,7 @@ int main(int argc, char **argv)
   // Initialize the raft service log manager
   auto master_database_name = config->GetDatabaseName(master_name);
   RaftServiceLogManager::GetInstance()->Initialize(master_database_name);
-  LOG(INFO) << "File chunk manager initialized with chunk database: "
+  LOG(INFO) << "Raft Service Log Manager initialized with master database: "
             << master_database_name;
 
   ServerBuilder builder;
