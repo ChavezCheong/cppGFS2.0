@@ -287,7 +287,12 @@ void RaftServiceImpl::reset_election_timeout(){
 // TODO: implement logic here
 void RaftServiceImpl::ConvertToLeader(){
     // Upon election, send empty AppendEntries RPC to all other servers
+    SendAppendEntries();
+    // TODO: make a function that resets heartbeat timeout
+    reset_election_timeout();
+}
 
+void RaftServiceImpl::SendAppendEntries(){
     std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
     AppendEntriesRequest request;
 

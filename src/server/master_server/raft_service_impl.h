@@ -40,6 +40,8 @@ private:
     void ConvertToCandidate();
     void ConvertToLeader();
 
+    void SendAppendEntries();
+
     State GetCurrentState();
 
     void SetAlarm(int after_ms);
