@@ -51,6 +51,9 @@ void RaftServiceImpl::Initialize(std::string master_name){
     LOG(INFO) << "Starting Raft Service";
     currState = State::Candidate;
     SetAlarm(150); // TODO: change this setup 
+    LOG(INFO) << "Starting Raft Service";
+    currState = State::Candidate;
+    SetAlarm(150); // TODO: change this setup 
 }
 
 
@@ -347,7 +350,7 @@ void RaftServiceImpl::SendAppendEntries(){
         std::pair<std::string, StatusOr<AppendEntriesReply>> append_entries_result = append_entries_results.front().get();
         std::string server_name = append_entries_result.first;
         StatusOr<AppendEntriesReply> append_entries_reply = append_entries_result.second;
-
+        //TODO : process requests and resend if necessary
     }
 
 }
