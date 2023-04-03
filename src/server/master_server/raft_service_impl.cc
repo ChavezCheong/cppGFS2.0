@@ -51,9 +51,6 @@ void RaftServiceImpl::Initialize(std::string master_name){
     LOG(INFO) << "Starting Raft Service";
     currState = State::Candidate;
     SetAlarm(150); // TODO: change this setup 
-    LOG(INFO) << "Starting Raft Service";
-    currState = State::Candidate;
-    SetAlarm(150); // TODO: change this setup 
 }
 
 
