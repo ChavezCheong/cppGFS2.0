@@ -39,6 +39,8 @@ void RaftServiceImpl::Initialize(){
 
     // Set up raft service log manager for use
     raft_service_log_manager_ = RaftServiceLogManager::GetInstance();
+
+    currState = State::Candidate;
 }
 
 
@@ -211,6 +213,8 @@ void RaftServiceImpl::ConvertToCandidate(){
     numVotes = 0;
     votedFor = serverId;
 
+    LOG(INFO) << "Server convert to candidate";
+
     reset_election_timeout();
 
     std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
@@ -221,6 +225,8 @@ void RaftServiceImpl::ConvertToCandidate(){
 
     for(auto server_name : all_servers){
         //TODO: CRITICAL FIX: DONT SEND TO YOURSELF EDIT THIS WHEN YOU ADD YOUR OWN SERVER NAME
+        
+        LOG(INFO) << "Sending request vote RPC to server" << server_name;
         request_vote_results.push_back(
             std::async(std::launch::async, [&, server_name](){
                 RequestVoteRequest request;
@@ -291,6 +297,8 @@ void RaftServiceImpl::reset_election_timeout(){
 void RaftServiceImpl::ConvertToLeader(){
     // Upon election, send empty AppendEntries RPC to all other servers
 
+    LOG(INFO) << "Server converts to leader";
+
     std::vector<std::string> all_servers = config_manager_->GetAllMasterServers();
     AppendEntriesRequest request;
 
@@ -305,6 +313,7 @@ void RaftServiceImpl::ConvertToLeader(){
         append_entries_results;
 
     for(auto server_name : all_servers){
+        LOG(INFO) << "Sending an empty AppendEntries RPC upon election to server" << server_name;
         //TODO: CRITICAL FIX: DONT SEND TO YOURSELF EDIT THIS WHEN YOU ADD YOUR OWN SERVER NAME
         append_entries_results.push_back(
             std::async(std::launch::async, [&, server_name](){
