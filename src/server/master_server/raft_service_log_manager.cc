@@ -9,7 +9,7 @@
 
 namespace gfs
 {
-    namespace server
+    namespace service
     {
 
         using google::protobuf::util::AlreadyExistsError;
@@ -213,5 +213,5 @@ namespace gfs
             return OkStatus();
         }
 
-    } // namespace server
+    } // namespace service
 } // namespace gfs

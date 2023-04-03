@@ -9,6 +9,7 @@
 #include "src/server/master_server/chunk_server_heartbeat_monitor_task.h"
 #include "src/server/master_server/master_chunk_server_manager_service_impl.h"
 #include "src/server/master_server/master_metadata_service_impl.h"
+#include "src/server/master_server/raft_service_log_manager.h"
 #include "raft_service_impl.h"
 
 using gfs::common::ConfigManager;
@@ -16,6 +17,7 @@ using gfs::server::ChunkServerHeartBeatMonitorTask;
 using gfs::service::MasterChunkServerManagerServiceImpl;
 using gfs::service::MasterMetadataServiceImpl;
 using gfs::service::RaftServiceImpl;
+using gfs::service::RaftServiceLogManager;
 using grpc::Server;
 using grpc::ServerBuilder;
 
@@ -24,7 +26,8 @@ ABSL_FLAG(std::string, master_name, "master_server_01",
           "run as the given master, as defined in the config");
 ABSL_FLAG(bool, use_docker_dns_server, false, "use docker's DNS server");
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
   gfs::common::SystemLogger::GetInstance().Initialize(/*program_name=*/argv[0]);
 
   // Parse command line arguments
@@ -35,14 +38,21 @@ int main(int argc, char** argv) {
 
   // Initialize configurations
   LOG(INFO) << "Reading GFS configuration: " << config_path;
-  ConfigManager* config = ConfigManager::GetConfig(config_path).value();
-  if (!config->HasMasterServer(master_name)) {
+  ConfigManager *config = ConfigManager::GetConfig(config_path).value();
+  if (!config->HasMasterServer(master_name))
+  {
     LOG(ERROR) << "No master server found in config: " << master_name;
     return 1;
   }
 
   LOG(INFO) << "Running as master server: " << master_name;
   LOG(INFO) << "Server starting...";
+
+  // Initialize the raft service log manager
+  auto master_database_name = config->GetDatabaseName(master_name);
+  RaftServiceLogManager::GetInstance()->Initialize(master_database_name);
+  LOG(INFO) << "File chunk manager initialized with chunk database: "
+            << master_database_name;
 
   ServerBuilder builder;
   auto credentials = grpc::InsecureChannelCredentials();

@@ -5,7 +5,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "gtest/gtest.h"
 
-using namespace gfs::server;
+using namespace gfs::service;
 
 // The fixture for testing RaftServiceLogManager. Handles setup and cleanup for the
 // test methods.

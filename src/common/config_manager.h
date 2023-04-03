@@ -43,7 +43,7 @@ class ConfigManager {
   // Resovle a hostname to an IP, using provided DNS lookup table in config
   std::string ResolveHostname(const std::string& hostname);
 
-  // Return the leveldb database name for the given chunk server
+  // Return the leveldb database name for the given chunk or master server
   std::string GetDatabaseName(const std::string& server_name);
 
   // Return the size of each file chunk/block in MB
