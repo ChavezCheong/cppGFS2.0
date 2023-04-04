@@ -39,8 +39,9 @@ void RaftServiceImpl::Initialize(std::string master_name){
     }
 
     for(auto server_name : all_servers){
-        auto server_address = config_manager_->GetServerAddress(server_name,
-                                          /*resolve_hostname=*/true);
+        auto server_address = config_manager_->GetServerAddress(server_name);
+        LOG(INFO) << "Establishing new connection to server:"
+              << server_address;
         masterServerClients[server_name] =         
         std::make_shared<RaftServiceClient>(
             grpc::CreateChannel(server_address,
@@ -87,7 +88,7 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     protos::grpc::RequestVoteReply* reply){
     // TODO: implement logic here
 
-    LOG(INFO) << "Handle Request Vote RPC from" << request->candidateid();
+    LOG(INFO) << "Handle Request Vote RPC from " << request->candidateid();
 
     reply->set_term(currentTerm);
     reply->set_votegranted(false);
@@ -129,6 +130,7 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
     const protos::grpc::AppendEntriesRequest* request,
     protos::grpc::AppendEntriesReply* reply){
 
+    LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid();
     
     // TODO: implement logic here
 
@@ -237,16 +239,22 @@ void RaftServiceImpl::ConvertToCandidate(){
         request_vote_results;
 
     for(auto server_name : all_servers){        
-        LOG(INFO) << "Sending request vote RPC to server" << server_name;
+        LOG(INFO) << "Sending request vote RPC to server " << server_name;
         request_vote_results.push_back(
             std::async(std::launch::async, [&, server_name](){
                 RequestVoteRequest request;
 
                 request.set_term(currentTerm);
                 request.set_candidateid(votedFor);
-                request.set_lastlogterm(log_.back().term());
-                request.set_lastlogindex(log_.back().index());
-
+                if(log_.size() == 0){
+                    request.set_lastlogterm(0);
+                    request.set_lastlogindex(0);
+                }
+                else{
+                    request.set_lastlogterm(log_.back().term());
+                    request.set_lastlogindex(log_.back().index());
+                }
+                
                 auto client = masterServerClients[server_name];
 
                 auto request_vote_reply = client->SendRequest(request);

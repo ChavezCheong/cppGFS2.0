@@ -56,19 +56,19 @@ private:
     gfs::common::thread_safe_flat_hash_map<std::string, std::shared_ptr<gfs::service::RaftServiceClient>> masterServerClients;
 
     // persistent state
-    int currentTerm, votedFor;
+    uint32_t currentTerm, votedFor;
     std::vector<LogEntry> log_;
 
-    const int numServers = 3;
+    const uint32_t numServers = 3;
 
     // volatile state on all servers
-    int commitIndex, lastApplied, currLeader, numVotes;
+    uint32_t commitIndex, lastApplied, currLeader, numVotes;
     State currState;
 
-    int serverId;
+    uint32_t serverId;
 
     // volatile state on leaders
-    gfs::common::thread_safe_flat_hash_map<std::string, int> nextIndex, matchIndex;
+    gfs::common::thread_safe_flat_hash_map<std::string, uint32_t> nextIndex, matchIndex;
 
     // persistent storage for raft service log
     RaftServiceLogManager* raft_service_log_manager_;
