@@ -258,22 +258,29 @@ void RaftServiceImpl::ConvertToCandidate(){
 
     // count the votes
     for(int i = 0; i < all_servers.size(); ++i){
-        auto request_vote_result = request_vote_results[i].get();
-        auto server_name = request_vote_result.first;
-        auto request_vote_reply = request_vote_result.second;
+        // TODO: abstract this into configurable variable
+        // wait for future with a timeout time 
+        std::future_status status = request_vote_results[i].wait_for(std::chrono::seconds(1));
 
-        // logic to handle votes
-        if (request_vote_reply.ok()){
-            auto reply = request_vote_reply.value();
-            // if outdated term, convert to follower
-            if(reply.term() > currentTerm){
-                LOG(INFO) << "Server converting to follower ";
-                currentTerm = reply.term();
-                ConvertToFollower();
-                return;
-            }
-            else if (reply.votegranted()){
-                numVotes++;
+        // check if future has resolved
+        if (status == std::future_status::ready){
+            auto request_vote_result = request_vote_results[i].get();
+            auto server_name = request_vote_result.first;
+            auto request_vote_reply = request_vote_result.second;
+
+            // logic to handle votes
+            if (request_vote_reply.ok()){
+                auto reply = request_vote_reply.value();
+                // if outdated term, convert to follower
+                if(reply.term() > currentTerm){
+                    LOG(INFO) << "Server converting to follower ";
+                    currentTerm = reply.term();
+                    ConvertToFollower();
+                    return;
+                }
+                else if (reply.votegranted()){
+                    numVotes++;
+                }
             }
         }
     }
@@ -343,11 +350,12 @@ void RaftServiceImpl::SendAppendEntries(){
     }
 
     while(!append_entries_results.empty()){
-        auto response_future = append_entries_results.front();
+        auto response_future = std::move(append_entries_results.front());
         append_entries_results.pop_front();
 
         // TODO: abstract this into configurable variable
-        std::future_status status = response_future.wait_for(std::chrono::seconds(0.5));
+        // wait for future with a timeout time 
+        std::future_status status = response_future.wait_for(std::chrono::seconds(1));
 
         // check if the future has resolved
         if (status == std::future_status::ready) {
@@ -357,7 +365,7 @@ void RaftServiceImpl::SendAppendEntries(){
 
             if (append_entries_reply.ok()){
                 AppendEntriesReply reply = append_entries_reply.value();
-                
+                // TODO: add logic to resend appendentries if needed
             }
             else{
 
