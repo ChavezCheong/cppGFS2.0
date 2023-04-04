@@ -324,7 +324,6 @@ void RaftServiceImpl::ConvertToLeader(){
 
 
 void RaftServiceImpl::SendAppendEntries(){
-
     std::deque<
         std::future<std::pair<std::string, StatusOr<AppendEntriesReply>>>>
         append_entries_results;
@@ -344,10 +343,28 @@ void RaftServiceImpl::SendAppendEntries(){
     }
 
     while(!append_entries_results.empty()){
-        std::pair<std::string, StatusOr<AppendEntriesReply>> append_entries_result = append_entries_results.front().get();
-        std::string server_name = append_entries_result.first;
-        StatusOr<AppendEntriesReply> append_entries_reply = append_entries_result.second;
-        //TODO : process requests and resend if necessary
+        auto response_future = append_entries_results.front();
+        append_entries_results.pop_front();
+
+        // TODO: abstract this into configurable variable
+        std::future_status status = response_future.wait_for(std::chrono::seconds(0.5));
+
+        // check if the future has resolved
+        if (status == std::future_status::ready) {
+            std::pair<std::string, StatusOr<AppendEntriesReply>> append_entries_result = response_future.get();
+            std::string server_name = append_entries_result.first;
+            StatusOr<AppendEntriesReply> append_entries_reply = append_entries_result.second;
+
+            if (append_entries_reply.ok()){
+                AppendEntriesReply reply = append_entries_reply.value();
+                
+            }
+            else{
+
+            }
+        }
+
+        
     }
 
 }
