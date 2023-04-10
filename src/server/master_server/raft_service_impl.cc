@@ -50,7 +50,9 @@ void RaftServiceImpl::Initialize(std::string master_name){
     // Set up raft service log manager for use
     raft_service_log_manager_ = RaftServiceLogManager::GetInstance();
     LOG(INFO) << "Starting Raft Service";
-    currState = State::Candidate;
+    currState = State::Follower;
+    votedFor = -1;
+    currentTerm = 0;
     SetAlarm(150); // TODO: change this setup 
 }
 
@@ -91,7 +93,7 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     LOG(INFO) << "Handle Request Vote RPC from " << request->candidateid();
 
     reply->set_term(currentTerm);
-    reply->set_votegranted(false);
+    reply->set_votegranted(0);
 
     // reply false if term < currentTerm
     if (request->term() < currentTerm){
@@ -105,6 +107,8 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         ConvertToFollower();
     }
 
+    if (currState == State::Leader) return grpc::Status::OK;
+
     // if votedFor is null or candidateId, and candidates 
     // log is at least as up to date as receiver's log, grant vote
     if((votedFor == -1 || votedFor == request->candidateid())
@@ -112,7 +116,7 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
        ((log_.back().term() < request->lastlogterm()) || 
        (log_.back().term() == request->lastlogterm() && log_.size() - 1 <= request->lastlogindex())))){
         votedFor = request->candidateid();
-        reply->set_votegranted(true);
+        reply->set_votegranted(1);
         // TODO: set votedFor in persistent storage and currentTerm
         // TODO: add some way to get current server id for logging
         LOG(INFO) << "Server voted for " << request->candidateid();
@@ -219,6 +223,7 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
 
 void RaftServiceImpl::ConvertToFollower(){
     currState = State::Follower;
+    votedFor = -1;
 }
 
 // TODO: implement logic here
@@ -268,10 +273,11 @@ void RaftServiceImpl::ConvertToCandidate(){
     for(int i = 0; i < all_servers.size(); ++i){
         // TODO: abstract this into configurable variable
         // wait for future with a timeout time 
-        std::future_status status = request_vote_results[i].wait_for(std::chrono::seconds(1));
+        std::future_status status = request_vote_results[i].wait_for(std::chrono::milliseconds(50));
 
         // check if future has resolved
         if (status == std::future_status::ready){
+            LOG(INFO) << "Future instance successfully executed";
             auto request_vote_result = request_vote_results[i].get();
             auto server_name = request_vote_result.first;
             auto request_vote_reply = request_vote_result.second;
@@ -280,18 +286,24 @@ void RaftServiceImpl::ConvertToCandidate(){
             if (request_vote_reply.ok()){
                 auto reply = request_vote_reply.value();
                 // if outdated term, convert to follower
+
+                LOG(INFO) << "Grant vote? " << reply.votegranted();
+                LOG(INFO) << "Term of reply " << reply.term();
                 if(reply.term() > currentTerm){
                     LOG(INFO) << "Server converting to follower ";
                     currentTerm = reply.term();
                     ConvertToFollower();
                     return;
                 }
-                else if (reply.votegranted()){
+                else if (reply.votegranted() == 1 and reply.term() == currentTerm){
                     numVotes++;
                 }
             }
         }
     }
+
+
+    LOG(INFO) << "Numbers of votes are " << numVotes;
 
     // TODO: CHANGE THIS TO CALCULATED QUORUM
     if(numVotes >= 2){
@@ -348,7 +360,7 @@ void RaftServiceImpl::SendAppendEntries(){
         append_entries_results.push_back(
             std::async(std::launch::async, [&, server_name](){
                 // create reply and send
-                AppendEntriesRequest request = createAppendEntriesRequest(server_name);
+                    AppendEntriesRequest request = createAppendEntriesRequest(server_name);
                 auto client = masterServerClients[server_name];
                 auto append_entries_reply = client->SendRequest(request);
 
@@ -356,6 +368,8 @@ void RaftServiceImpl::SendAppendEntries(){
                     server_name, append_entries_reply);
         }));
     }
+
+    return; 
 
     while(!append_entries_results.empty()){
         auto response_future = std::move(append_entries_results.front());

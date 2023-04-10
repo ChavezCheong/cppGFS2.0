@@ -48,5 +48,5 @@ message RequestVoteRequest {
 
 message RequestVoteReply {
     uint32 term = 1;
-    bool voteGranted = 2;
+    uint32 voteGranted = 2;
 }
