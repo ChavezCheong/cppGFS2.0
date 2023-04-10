@@ -21,7 +21,7 @@ public:
     RaftServiceImpl(common::ConfigManager* config_manager) : config_manager_(config_manager) {};
     enum State {Follower, Candidate, Leader};
     void AlarmCallback();
-    void Initialize(std::string master_name);
+    void Initialize(std::string master_name, bool resolve_hostname);
 
 private:
     // Handle AppendEntries request sent by Raft server
@@ -72,6 +72,9 @@ private:
 
     // persistent storage for raft service log
     RaftServiceLogManager* raft_service_log_manager_;
+
+    // configurations for resolving hostnames
+    bool resolve_hostname_;
 
 };
 

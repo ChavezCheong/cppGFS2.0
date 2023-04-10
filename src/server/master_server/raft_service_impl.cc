@@ -26,9 +26,10 @@ void HandleSignal(int signum) {
     alarmHandlerServer->AlarmCallback();
 }
 
-void RaftServiceImpl::Initialize(std::string master_name){
+void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname){
     signal(SIGALRM, &HandleSignal);
     alarmHandlerServer = this;
+    this->resolve_hostname_ =  resolve_hostname;
 
     // get all servers that are not ourselves
     std::vector<std::string> all_master_servers = config_manager_->GetAllMasterServers();
@@ -39,7 +40,7 @@ void RaftServiceImpl::Initialize(std::string master_name){
     }
 
     for(auto server_name : all_servers){
-        auto server_address = config_manager_->GetServerAddress(server_name);
+        auto server_address = config_manager_->GetServerAddress(server_name, resolve_hostname_);
         LOG(INFO) << "Establishing new connection to server:"
               << server_address;
         masterServerClients[server_name] =         
