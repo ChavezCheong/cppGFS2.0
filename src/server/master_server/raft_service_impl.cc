@@ -58,7 +58,7 @@ void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname)
     currState = State::Follower;
     votedFor = 0;
     currentTerm = 0;
-    SetAlarm(150); // TODO: change this setup 
+    reset_election_timeout(); 
 }
 
 
@@ -74,7 +74,7 @@ void RaftServiceImpl::AlarmCallback() {
     }
     if(currState == State::Leader){
         SendAppendEntries();
-        reset_election_timeout();
+        reset_heartbeat_timeout();
     }
 }
 
@@ -90,17 +90,6 @@ void RaftServiceImpl::AlarmHeartbeatCallback(){
 }
 
 void RaftServiceImpl::SetAlarm(int after_ms) {
-    struct itimerval timer;
-    timer.it_value.tv_sec = after_ms / 1000;
-    timer.it_value.tv_usec = 1000 * (after_ms % 1000); // microseconds
-    timer.it_interval = timer.it_value;
-    setitimer(ITIMER_REAL, &timer, nullptr);
-    return;
-}
-
-void RaftServiceImpl::SetHeartbeatAlarm(int after_ms){
-    // TODO: Mark please checks this implementaiton
-
     struct itimerval timer;
     timer.it_value.tv_sec = after_ms / 1000;
     timer.it_value.tv_usec = 1000 * (after_ms % 1000); // microseconds
@@ -164,8 +153,13 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
 
     LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid();
     
-    // TODO: implement logic here
+    // Testing purposes only, once the logs start working we're ging to
+    // remove this
+    reset_election_timeout();
+    return grpc::Status::OK;
 
+    // TODO: implement logic here
+    
     int prev_log_index = request->prevlogindex();
     int prev_log_term = request->prevlogterm();
 
@@ -355,15 +349,22 @@ void RaftServiceImpl::reset_election_timeout(){
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(ELECTION_TIMEOUT_LOW, ELECTION_TIMEOUT_HIGH);
 
-    float election_timeout_ = dis(gen);
+    float election_timeout = dis(gen);
 
-    SetAlarm(election_timeout_);
+    SetAlarm(election_timeout);
 }
 
 void RaftServiceImpl::reset_heartbeat_timeout(){
-    int HEARTBEAT_TIMEOUT = 30;
+    int HEARTBEAT_TIMEOUT_LOW = 100;
+    int HEARTBEAT_TIMEOUT_HIGH = 200;
 
-    SetAlarm(HEARTBEAT_TIMEOUT);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(HEARTBEAT_TIMEOUT_LOW, HEARTBEAT_TIMEOUT_HIGH);
+
+    float heartbeat_timeout = dis(gen);
+
+    SetAlarm(heartbeat_timeout);
 }
 
 // TODO: implement logic here
@@ -395,7 +396,8 @@ void RaftServiceImpl::SendAppendEntries(){
         append_entries_results.push_back(
             std::async(std::launch::async, [&, server_name](){
                 // create reply and send
-                    AppendEntriesRequest request = createAppendEntriesRequest(server_name);
+                // AppendEntriesRequest request = createAppendEntriesRequest(server_name);
+                AppendEntriesRequest request;
                 auto client = masterServerClients[server_name];
                 auto append_entries_reply = client->SendRequest(request);
 
@@ -421,6 +423,7 @@ void RaftServiceImpl::SendAppendEntries(){
             if (append_entries_reply.ok()){
                 AppendEntriesReply reply = append_entries_reply.value();
                 // TODO: add logic to resend appendentries if needed
+                LOG(INFO) << "Received AppendEntriesReply " << reply.SerializeAsString();
             }
             else{
 
