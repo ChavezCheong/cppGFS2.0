@@ -121,12 +121,13 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         // TODO: set votedFor in persistent storage and currentTerm
         // TODO: add some way to get current server id for logging
         LOG(INFO) << "Server voted for " << request->candidateid();
+        reset_election_timeout();
     }
 
     // TODO: add timer for election to timeout when necessary
 
     // reset election when 
-    reset_election_timeout();
+    
 
     return grpc::Status::OK;
 }
@@ -290,6 +291,7 @@ void RaftServiceImpl::ConvertToCandidate(){
 
                 LOG(INFO) << "Grant vote? " << reply.votegranted();
                 LOG(INFO) << "Term of reply " << reply.term();
+                LOG(INFO) << "Current term " << currentTerm;
                 if(reply.term() > currentTerm){
                     LOG(INFO) << "Server converting to follower ";
                     currentTerm = reply.term();
@@ -298,8 +300,12 @@ void RaftServiceImpl::ConvertToCandidate(){
                 }
                 else if (reply.votegranted() == 1 and reply.term() == currentTerm){
                     numVotes++;
+                    LOG(INFO) << "Term incremented correctly. " << numVotes;
                 }
             }
+        }
+        else {
+            LOG(INFO) << "THE FUNCTION TIMED OUT";
         }
     }
 
@@ -320,8 +326,8 @@ RaftServiceImpl::State RaftServiceImpl::GetCurrentState(){
 void RaftServiceImpl::reset_election_timeout(){
     // TODO: add a Timer here
 
-    int ELECTION_TIMEOUT_LOW = 150;
-    int ELECTION_TIMEOUT_HIGH = 500;
+    int ELECTION_TIMEOUT_LOW = 1000;
+    int ELECTION_TIMEOUT_HIGH = 2000;
 
     std::random_device rd;
     std::mt19937 gen(rd());
