@@ -122,6 +122,9 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         // TODO: add some way to get current server id for logging
         LOG(INFO) << "Server voted for " << request->candidateid();
     }
+    else{
+        return grpc::Status::OK;
+    }
 
     // TODO: add timer for election to timeout when necessary
 
