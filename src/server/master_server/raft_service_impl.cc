@@ -348,8 +348,8 @@ RaftServiceImpl::State RaftServiceImpl::GetCurrentState(){
 void RaftServiceImpl::reset_election_timeout(){
     // TODO: add a Timer here
 
-    int ELECTION_TIMEOUT_LOW = 150;
-    int ELECTION_TIMEOUT_HIGH = 500;
+    int ELECTION_TIMEOUT_LOW = 1000;
+    int ELECTION_TIMEOUT_HIGH = 2000;
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -397,7 +397,6 @@ void RaftServiceImpl::SendAppendEntries(){
                 // create reply and send
                     AppendEntriesRequest request = createAppendEntriesRequest(server_name);
                 auto client = masterServerClients[server_name];
-                LOG(INFO) << "Sending...";
                 auto append_entries_reply = client->SendRequest(request);
 
                 return std::pair<std::string, StatusOr<AppendEntriesReply>>(
@@ -411,7 +410,7 @@ void RaftServiceImpl::SendAppendEntries(){
 
         // TODO: abstract this into configurable variable
         // wait for future with a timeout time 
-        std::future_status status = response_future.wait_for(std::chrono::milliseconds(25));
+        std::future_status status = response_future.wait_for(std::chrono::seconds(1));
 
         // check if the future has resolved
         if (status == std::future_status::ready) {
