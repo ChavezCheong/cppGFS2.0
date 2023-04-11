@@ -78,6 +78,17 @@ void RaftServiceImpl::AlarmCallback() {
     }
 }
 
+void RaftServiceImpl::AlarmHeartbeatCallback(){
+    // This is the alarm that handles heartbeat, not to confuse with AlarmCallback which handle elections
+
+    // TODO: add logic to resend heartbeat as leader
+    // TODO: consider some potential edge cases and race conditions
+    // TODO: Initialize this when server turned into a leader
+    if(currState == State::Leader){
+        reset_heartbeat_timeout();
+    }
+}
+
 void RaftServiceImpl::SetAlarm(int after_ms) {
     struct itimerval timer;
     timer.it_value.tv_sec = after_ms / 1000;
@@ -87,7 +98,16 @@ void RaftServiceImpl::SetAlarm(int after_ms) {
     return;
 }
 
+void RaftServiceImpl::SetHeartbeatAlarm(int after_ms){
+    // TODO: Mark please checks this implementaiton
 
+    struct itimerval timer;
+    timer.it_value.tv_sec = after_ms / 1000;
+    timer.it_value.tv_usec = 1000 * (after_ms % 1000); // microseconds
+    timer.it_interval = timer.it_value;
+    setitimer(ITIMER_REAL, &timer, nullptr);
+    return;
+}
 
 
 grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
@@ -125,7 +145,6 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         // TODO: set votedFor in persistent storage and currentTerm
         // TODO: add some way to get current server id for logging
         LOG(INFO) << "Server voted for " << request->candidateid();
-        reset_election_timeout();
     }
     else{
         return grpc::Status::OK;
@@ -134,7 +153,7 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     // TODO: add timer for election to timeout when necessary
 
     // reset election when 
-    
+    reset_election_timeout();
 
     return grpc::Status::OK;
 }
@@ -307,12 +326,8 @@ void RaftServiceImpl::ConvertToCandidate(){
                 }
                 else if (reply.votegranted() == 1 and reply.term() <= currentTerm){
                     numVotes++;
-                    LOG(INFO) << "Term incremented correctly. " << numVotes;
                 }
             }
-        }
-        else {
-            LOG(INFO) << "THE FUNCTION TIMED OUT";
         }
     }
 
@@ -333,8 +348,8 @@ RaftServiceImpl::State RaftServiceImpl::GetCurrentState(){
 void RaftServiceImpl::reset_election_timeout(){
     // TODO: add a Timer here
 
-    int ELECTION_TIMEOUT_LOW = 1000;
-    int ELECTION_TIMEOUT_HIGH = 2000;
+    int ELECTION_TIMEOUT_LOW = 150;
+    int ELECTION_TIMEOUT_HIGH = 500;
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -343,6 +358,12 @@ void RaftServiceImpl::reset_election_timeout(){
     float election_timeout_ = dis(gen);
 
     SetAlarm(election_timeout_);
+}
+
+void RaftServiceImpl::reset_heartbeat_timeout(){
+    int HEARTBEAT_TIMEOUT = 30;
+
+    SetAlarm(HEARTBEAT_TIMEOUT);
 }
 
 // TODO: implement logic here
@@ -376,6 +397,7 @@ void RaftServiceImpl::SendAppendEntries(){
                 // create reply and send
                     AppendEntriesRequest request = createAppendEntriesRequest(server_name);
                 auto client = masterServerClients[server_name];
+                LOG(INFO) << "Sending...";
                 auto append_entries_reply = client->SendRequest(request);
 
                 return std::pair<std::string, StatusOr<AppendEntriesReply>>(
@@ -389,7 +411,7 @@ void RaftServiceImpl::SendAppendEntries(){
 
         // TODO: abstract this into configurable variable
         // wait for future with a timeout time 
-        std::future_status status = response_future.wait_for(std::chrono::seconds(1));
+        std::future_status status = response_future.wait_for(std::chrono::milliseconds(25));
 
         // check if the future has resolved
         if (status == std::future_status::ready) {

@@ -21,6 +21,7 @@ public:
     RaftServiceImpl(common::ConfigManager* config_manager) : config_manager_(config_manager) {};
     enum State {Follower, Candidate, Leader};
     void AlarmCallback();
+    void AlarmHeartbeatCallback();
     void Initialize(std::string master_name, bool resolve_hostname);
 
 private:
@@ -44,9 +45,11 @@ private:
     State GetCurrentState();
 
     void SetAlarm(int after_ms);
+    void SetHeartbeatAlarm(int after_ms);
     
 
     void reset_election_timeout();
+    void reset_heartbeat_timeout();
 
     protos::grpc::AppendEntriesRequest createAppendEntriesRequest(std::string server_name);
 
