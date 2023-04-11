@@ -67,6 +67,9 @@ private:
 
     uint32_t serverId;
 
+    // lock for critical regions
+    absl::Mutex lock_;
+
     // volatile state on leaders
     gfs::common::thread_safe_flat_hash_map<std::string, uint32_t> nextIndex, matchIndex;
 

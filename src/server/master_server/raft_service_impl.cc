@@ -1,4 +1,5 @@
 #include "raft_service_impl.h"
+#include "absl/synchronization/mutex.h"
 #include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/common/system_logger.h"
 #include <csignal>
@@ -31,6 +32,9 @@ void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname)
     alarmHandlerServer = this;
     this->resolve_hostname_ =  resolve_hostname;
 
+    // set up the lock
+    absl::MutexLock l(&lock_);
+
     // get all servers that are not ourselves
     std::vector<std::string> all_master_servers = config_manager_->GetAllMasterServers();
     for(auto server: all_master_servers){
@@ -52,7 +56,7 @@ void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname)
     raft_service_log_manager_ = RaftServiceLogManager::GetInstance();
     LOG(INFO) << "Starting Raft Service";
     currState = State::Follower;
-    votedFor = -1;
+    votedFor = 0;
     currentTerm = 0;
     SetAlarm(150); // TODO: change this setup 
 }
@@ -301,7 +305,7 @@ void RaftServiceImpl::ConvertToCandidate(){
                     ConvertToFollower();
                     return;
                 }
-                else if (reply.votegranted() == 1 and reply.term() == currentTerm){
+                else if (reply.votegranted() == 1 and reply.term() <= currentTerm){
                     numVotes++;
                     LOG(INFO) << "Term incremented correctly. " << numVotes;
                 }
@@ -316,7 +320,7 @@ void RaftServiceImpl::ConvertToCandidate(){
     LOG(INFO) << "Numbers of votes are " << numVotes;
 
     // TODO: CHANGE THIS TO CALCULATED QUORUM
-    if(numVotes >= 2){
+    if(numVotes >= 1){
         ConvertToLeader();
     }
 }
@@ -378,8 +382,6 @@ void RaftServiceImpl::SendAppendEntries(){
                     server_name, append_entries_reply);
         }));
     }
-
-    return; 
 
     while(!append_entries_results.empty()){
         auto response_future = std::move(append_entries_results.front());
