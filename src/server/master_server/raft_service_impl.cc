@@ -123,6 +123,9 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         LOG(INFO) << "Server voted for " << request->candidateid();
         reset_election_timeout();
     }
+    else{
+        return grpc::Status::OK;
+    }
 
     // TODO: add timer for election to timeout when necessary
 
