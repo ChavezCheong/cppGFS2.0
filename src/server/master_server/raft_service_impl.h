@@ -51,6 +51,9 @@ private:
     // Commit all entries, return latest entry
     Command ApplyStateMachine();
 
+    // continuously running loop that fetches from queue and replicates
+    void ClientLoop();
+
 
     void SendRequestVote(); // TODO: change this later
     void SendAppendEntries(); //TODO: change this later

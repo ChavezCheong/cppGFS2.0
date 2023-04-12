@@ -65,6 +65,49 @@ void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname)
     votedFor = 0;
     currentTerm = 0;
     reset_election_timeout(); 
+    ClientLoop();
+}
+
+void RaftServiceImpl::ClientLoop(){
+    while(true){
+        if(request_queue.empty()){
+            continue;
+        }
+
+
+        // get request from queue
+        queue_lock.Lock();
+        auto& request = request_queue.front();
+        Command command = request.first;
+        absl::CondVar& cv = request.second;
+        request_queue.pop();
+        queue_lock.Unlock();
+
+
+        LogEntry log_entry;
+        // set LogEntry params
+        log_entry.set_index(log_.size());
+        log_entry.set_term(currentTerm);
+        if (command.has_open_file()) {
+            log_entry.mutable_command()->mutable_open_file()->CopyFrom(command.open_file());
+        } else if (command.has_delete_file()) {
+            log_entry.mutable_command()->mutable_delete_file()->CopyFrom(command.delete_file());
+        }
+
+        log_.push_back(log_entry);
+        
+        // continue to send AppendEntries until the current entry has been committed
+        while(commitIndex < log_.size() - 1){
+            SendAppendEntries();
+        }
+
+        // set global atomic var to spin itself
+        event_loop_bool.store(true);
+
+        cv.Signal();
+
+        while(event_loop_bool){}        
+    }
 }
 
 
@@ -117,6 +160,8 @@ grpc::Status RaftServiceImpl::DeleteFile(grpc::ServerContext* context,
     google::protobuf::Empty* reply){
     // TODO: logic
 }
+
+
 
 protos::grpc::Command RaftServiceImpl::ApplyStateMachine(){
     // TODO : apply all of the state entries up until the most recently commited
