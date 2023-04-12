@@ -35,6 +35,20 @@ class RaftServiceClient {
       const protos::grpc::AppendEntriesRequest& request,
       grpc::ClientContext& context);
 
+  // Send a OpenFile grpc to the master servers. Only the leader will process it.
+  google::protobuf::util::StatusOr<protos::grpc::OpenFileReply> SendRequest(
+      const protos::grpc::OpenFileRequest& request);
+  google::protobuf::util::StatusOr<protos::grpc::OpenFileReply> SendRequest(
+      const protos::grpc::OpenFileRequest& request,
+      grpc::ClientContext& context);
+
+  // TODO: (Chavez) Implement a DeleteFile grpc
+  google::protobuf::util::Status SendRequest(
+      const protos::grpc::DeleteFileRequest& request);
+  google::protobuf::util::Status SendRequest(
+      const protos::grpc::DeleteFileRequest& request,
+      grpc::ClientContext& context);
+
  private:
   // The gRPC client for managing protocols defined in RaftSerice
   std::unique_ptr<protos::grpc::RaftService::Stub> stub_;

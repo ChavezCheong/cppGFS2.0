@@ -10,6 +10,7 @@
 #include "src/common/config_manager.h"
 #include "src/common/protocol_client/chunk_server_service_gfs_client.h"
 #include "src/common/protocol_client/master_metadata_service_client.h"
+#include "src/common/protocol_client/raft_service_client.h"
 #include "src/common/utils.h"
 #include "src/protos/grpc/master_metadata_service.grpc.pb.h"
 
@@ -51,7 +52,7 @@ class ClientImpl {
              const std::string& master_name, 
              const bool resolve_hostname = false);
 
-    void RegisterMasterMetadataServiceClient(const std::string& server_name, const std::string& server_address);
+    void RegisterRaftServiceClient(const std::string& server_name, const std::string& server_address);
 
   // Internal function to cache file chunk metadata returned by master
   void cache_file_chunk_metadata(
@@ -100,15 +101,15 @@ class ClientImpl {
   CacheManager* cache_manager_;
   
   // Reference to the MasterMetadataService client
-  std::shared_ptr<service::MasterMetadataServiceClient> 
-      master_metadata_service_client_;
+  std::shared_ptr<service::RaftServiceClient> 
+      raft_service_client_;
 
   // Reference to MasterMetadataService clients which can be accessed by the
   // master names, the client will have to connect to different 
   // master servers. 
   common::parallel_hash_map<
-      std::string, std::shared_ptr<service::MasterMetadataServiceClient>> 
-          master_metadata_service_client_map_;
+      std::string, std::shared_ptr<service::RaftServiceClient>> 
+          raft_service_client_map_;
 
   // Reference to ChunkServerServiceGfs clients which can be accessed by the
   // chunk server addresses, the client will have to connect to different 
