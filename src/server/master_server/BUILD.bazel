@@ -129,6 +129,7 @@ cc_library(
         "//src/common:utils",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@boost//:lockfree",
     ]
 )
 

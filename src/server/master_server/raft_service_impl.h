@@ -7,6 +7,7 @@
 #include "src/server/master_server/raft_service_log_manager.h"
 #include "absl/container/flat_hash_map.h"
 #include "src/common/utils.h"
+#include "boost/lockfree/queue.hpp"
 
 using protos::grpc::LogEntry;
 
@@ -82,6 +83,9 @@ private:
     // configurations for resolving hostnames
     bool resolve_hostname_;
 
+    // queue for waiting on variables
+    boost::lockfree::queue<int> my_queue;
+    
 };
 
 }
