@@ -8,8 +8,10 @@
 #include "absl/container/flat_hash_map.h"
 #include "src/common/utils.h"
 #include "boost/lockfree/queue.hpp"
+#include <queue>
 
 using protos::grpc::LogEntry;
+using protos::grpc::Command;
 
 namespace gfs{
 namespace service{
@@ -35,6 +37,20 @@ private:
     grpc::Status RequestVote(grpc::ServerContext* context,
                                const protos::grpc::RequestVoteRequest* request,
                                protos::grpc::RequestVoteReply* reply) override;
+    
+    // Handle DeleteFile request sent by client
+    grpc::Status DeleteFile(grpc::ServerContext* context,
+                                const protos::grpc::DeleteFileRequest* request,
+                                google::protobuf::Empty* reply) override;
+
+    // Handle OpenFile request sent by client
+    grpc::Status OpenFile(grpc::ServerContext* context,
+                                const protos::grpc::OpenFileRequest* request,
+                                protos::grpc::OpenFileReply* reply) override;
+
+    // Commit all entries, return latest entry
+    Command ApplyStateMachine();
+
 
     void SendRequestVote(); // TODO: change this later
     void SendAppendEntries(); //TODO: change this later
@@ -84,8 +100,17 @@ private:
     bool resolve_hostname_;
 
     // queue for waiting on variables
-    boost::lockfree::queue<int> my_queue;
-    
+    std::queue<std::pair<Command, absl::CondVar>> request_queue;    
+
+    // lock for queue
+    absl::Mutex queue_lock;
+
+    // lock for commit
+    absl::Mutex commit_lock;
+
+    // atomic bool for blocking main event loop while commits occur
+    std::atomic<bool> event_loop_bool;
+
 };
 
 }

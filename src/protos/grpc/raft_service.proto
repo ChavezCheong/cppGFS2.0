@@ -40,10 +40,13 @@ service RaftService {
 message LogEntry {
     uint32 index = 1;
     uint32 term = 2;
+    Command command = 3;
+}
 
+message Command{
     oneof command{
-        OpenFileRequest open_file = 3;
-        DeleteFileRequest delete_file = 4;
+        OpenFileRequest open_file = 1;
+        DeleteFileRequest delete_file = 2;
     }
 }
 

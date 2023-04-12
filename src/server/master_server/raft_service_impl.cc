@@ -13,9 +13,15 @@ using protos::grpc::RequestVoteRequest;
 using protos::grpc::AppendEntriesRequest;
 using protos::grpc::RequestVoteReply;
 using protos::grpc::AppendEntriesReply;
+using protos::grpc::OpenFileRequest;
+using protos::grpc::OpenFileReply;
+using protos::grpc::DeleteFileRequest;
+using google::protobuf::Empty;
 using google::protobuf::util::Status;
 using google::protobuf::util::StatusOr;
 using protos::grpc::LogEntry;
+using protos::grpc::Command;
+
 
 
 
@@ -32,8 +38,8 @@ void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname)
     alarmHandlerServer = this;
     this->resolve_hostname_ =  resolve_hostname;
 
-    // set up the lock
-    absl::MutexLock l(&lock_);
+    // initialize event loop bool    
+    event_loop_bool.store(false);
 
     // get all servers that are not ourselves
     std::vector<std::string> all_master_servers = config_manager_->GetAllMasterServers();
@@ -99,10 +105,28 @@ void RaftServiceImpl::SetAlarm(int after_ms) {
 }
 
 
+grpc::Status RaftServiceImpl::OpenFile(grpc::ServerContext* context,
+    const protos::grpc::OpenFileRequest* request,
+    protos::grpc::OpenFileReply* reply){
+    // TODO: logic
+}
+
+
+grpc::Status RaftServiceImpl::DeleteFile(grpc::ServerContext* context,
+    const protos::grpc::DeleteFileRequest* request,
+    google::protobuf::Empty* reply){
+    // TODO: logic
+}
+
+protos::grpc::Command RaftServiceImpl::ApplyStateMachine(){
+    // TODO : apply all of the state entries up until the most recently commited
+}
+
+
+
 grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     const protos::grpc::RequestVoteRequest* request,
     protos::grpc::RequestVoteReply* reply){
-    // TODO: implement logic here
 
     LOG(INFO) << "Handle Request Vote RPC from " << request->candidateid();
 
