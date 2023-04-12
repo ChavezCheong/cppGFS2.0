@@ -1,6 +1,7 @@
 #include "raft_service_impl.h"
 #include "absl/synchronization/mutex.h"
 #include "src/protos/grpc/raft_service.grpc.pb.h"
+#include "src/server/master_server/master_metadata_service_impl.h"
 #include "src/common/system_logger.h"
 #include <csignal>
 #include <random>
@@ -9,6 +10,7 @@
 #include <vector>
 #include <deque>
 
+using gfs::service::MasterMetadataServiceImpl;
 using protos::grpc::RequestVoteRequest;
 using protos::grpc::AppendEntriesRequest;
 using protos::grpc::RequestVoteReply;
@@ -23,11 +25,10 @@ using protos::grpc::LogEntry;
 using protos::grpc::Command;
 
 
-
-
 namespace gfs{
 namespace service{
 RaftServiceImpl* alarmHandlerServer;
+MasterMetadataServiceImpl* MetadataHandler;
 
 void HandleSignal(int signum) {
     alarmHandlerServer->AlarmCallback();
@@ -152,6 +153,7 @@ grpc::Status RaftServiceImpl::OpenFile(grpc::ServerContext* context,
     const protos::grpc::OpenFileRequest* request,
     protos::grpc::OpenFileReply* reply){
     // TODO: logic
+    return MetadataHandler->OpenFile(context, request, reply);
 }
 
 
@@ -159,6 +161,7 @@ grpc::Status RaftServiceImpl::DeleteFile(grpc::ServerContext* context,
     const protos::grpc::DeleteFileRequest* request,
     google::protobuf::Empty* reply){
     // TODO: logic
+    return MetadataHandler->DeleteFile(context, request, reply);
 }
 
 
