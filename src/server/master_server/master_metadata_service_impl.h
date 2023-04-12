@@ -27,7 +27,6 @@ class MasterMetadataServiceImpl final
   std::shared_ptr<gfs::service::ChunkServerServiceMasterServerClient>
   GetOrCreateChunkServerProtocolClient(const std::string& server_address);
 
- protected:
   // Accessor to the MetadataManager instance
   server::MetadataManager* metadata_manager();
 
