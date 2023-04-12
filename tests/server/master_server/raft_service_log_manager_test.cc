@@ -65,23 +65,23 @@ TEST_F(RaftServiceLogManagerTest, LogGetAppendDeleteTest)
 
     // Set up logs
     LogEntry log1;
-    log1.set_command(LogEntry::CLIENT_NEW_FILE);
+    // log1.set_command(LogEntry::CLIENT_NEW_FILE);
     log1.set_index(1);
     log1.set_term(0);
-    log1.add_commanddata("testdata1");
-    log1.add_commanddata("testdata2");
+    // log1.add_commanddata("testdata1");
+    // log1.add_commanddata("testdata2");
     LogEntry log2;
-    log2.set_command(LogEntry::CLIENT_NEW_FILE);
+    // log2.set_command(LogEntry::CLIENT_NEW_FILE);
     log2.set_index(1);
     log2.set_term(0);
-    log2.add_commanddata("testdata1");
-    log2.add_commanddata("testdata2");
+    // log2.add_commanddata("testdata1");
+    // log2.add_commanddata("testdata2");
     LogEntry log3;
-    log3.set_command(LogEntry::CLIENT_NEW_FILE);
+    // log3.set_command(LogEntry::CLIENT_NEW_FILE);
     log3.set_index(1);
     log3.set_term(0);
-    log3.add_commanddata("testdata1");
-    log3.add_commanddata("testdata2");
+    // log3.add_commanddata("testdata1");
+    // log3.add_commanddata("testdata2");
 
     std::vector<LogEntry> log_entries;
     log_entries.push_back(log1);
@@ -100,17 +100,17 @@ TEST_F(RaftServiceLogManagerTest, LogGetAppendDeleteTest)
 
     // Add again and see if the append functionality works
     LogEntry log4;
-    log4.set_command(LogEntry::CLIENT_NEW_FILE);
+    // log4.set_command(LogEntry::CLIENT_NEW_FILE);
     log4.set_index(1);
     log4.set_term(0);
-    log4.add_commanddata("testdata1");
-    log4.add_commanddata("testdata2");
+    // log4.add_commanddata("testdata1");
+    // log4.add_commanddata("testdata2");
     LogEntry log5;
-    log5.set_command(LogEntry::CHUNK_LEASE_REQUEST);
+    // log5.set_command(LogEntry::CHUNK_LEASE_REQUEST);
     log5.set_index(1);
     log5.set_term(0);
-    log5.add_commanddata("testdata1");
-    log5.add_commanddata("testdata2");
+    // log5.add_commanddata("testdata1");
+    // log5.add_commanddata("testdata2");
 
     std::vector<LogEntry> additional_log_entries;
     log_entries.push_back(log4);

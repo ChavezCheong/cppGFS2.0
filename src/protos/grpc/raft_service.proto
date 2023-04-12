@@ -1,28 +1,50 @@
 syntax = "proto3";
 
 package protos.grpc;
+import "src/protos/grpc/master_metadata_service.proto";
+import "google/protobuf/empty.proto";
+
 
 service RaftService {
     // add more functions to the services
     rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesReply){}
     rpc RequestVote(RequestVoteRequest) returns (RequestVoteReply){}
+
+      // Return the chunk handle, version, and associated replica locations
+  // for a given |filename| at |chunk_index|. 
+  //
+  // For |APPEND| mode, |chunk_index| is not required, ignored if specified, 
+  // because the master will decide which chunk handle the client should write 
+  // to for the append operation; if no concurrent append exists, this is 
+  // guaranteed to be the chunk handle for the last chunk index.
+  //
+  // If either |filename| or |chunk_index| doesn't exist, an error status with 
+  // empty reply is returned if |create_if_not_exists| is false; otherwise, the
+  // master will create the chunk, and initialize its creation on all chunk 
+  // servers, before returning to client. If chunk creation fails, the open
+  // operation is considered to have failed.
+  //
+  // The master does not enforce or guarantee a |filename| will always have
+  // continuous |chunk_index|. Fragmentation and missing intermediate chunks may 
+  // exist if client forgets, or fails, to create an intermediate |chunk_index|.
+  // In this case, it is up to the client to retry, when applicable.
+  rpc OpenFile(OpenFileRequest) returns (OpenFileReply) {}
+
+  // Delete |filename|. This effectively deletes all associated file chunks.
+  // If |filename| doesn't exist yet, an error status is returned.
+  rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty) {}
+
 }
 
 
 message LogEntry {
     uint32 index = 1;
     uint32 term = 2;
-    
-    enum CommandType{
-        CHUNK_UPDATE = 0;
-        CHUNK_FAILURE = 1;
-        CHUNK_LEASE_REQUEST = 2;
-        CLIENT_NEW_FILE = 3;
-        CLIENT_EDIT_FILE = 4;
-        CLIENT_DELETE_FILE = 5;
+
+    oneof command{
+        OpenFileRequest open_file = 3;
+        DeleteFileRequest delete_file = 4;
     }
-    CommandType command = 3;
-    repeated string commandData = 4;
 }
 
 message AppendEntriesRequest {
