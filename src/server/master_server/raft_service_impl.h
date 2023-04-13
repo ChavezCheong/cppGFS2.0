@@ -26,6 +26,8 @@ public:
     void AlarmCallback();
     void AlarmHeartbeatCallback();
     void Initialize(std::string master_name, bool resolve_hostname);
+    void Lock();
+    void Unlock();
 
 private:
     // Handle AppendEntries request sent by Raft server
@@ -74,6 +76,9 @@ private:
     protos::grpc::AppendEntriesRequest createAppendEntriesRequest(std::string server_name);
 
     common::ConfigManager* config_manager_;
+
+    bool locked_ ABSL_GUARDED_BY(mu_) = false;
+    absl::Mutex mu_;
 
     std::vector<std::string> all_servers;
     gfs::common::thread_safe_flat_hash_map<std::string, std::shared_ptr<gfs::service::RaftServiceClient>> masterServerClients;
