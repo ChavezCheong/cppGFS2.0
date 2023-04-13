@@ -68,9 +68,9 @@ int main(int argc, char **argv)
   // Listen on the given address without any authentication mechanism for now.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
 
-  // Register a synchronous service for handling clients' metadata requests
-  MasterMetadataServiceImpl metadata_service(config, resolve_hostname);
-  builder.RegisterService(&metadata_service);
+  // // Register a synchronous service for handling clients' metadata requests
+  // MasterMetadataServiceImpl metadata_service(config, resolve_hostname);
+  // builder.RegisterService(&metadata_service);
 
   // Register a synchronous service for coordinating with chunkservers
   MasterChunkServerManagerServiceImpl chunk_server_mgr_service;
@@ -78,18 +78,18 @@ int main(int argc, char **argv)
 
   // Re
   ClientService::AsyncService client_service;
+  LOG(INFO) << "client_service at " << &client_service;
   builder.RegisterService(&client_service);
   std::unique_ptr<ServerCompletionQueue> cq = builder.AddCompletionQueue();
 
-  // Register a synchronous service for Raft fault tolerance
+  // // Register a synchronous service for Raft fault tolerance
   RaftServiceImpl raft_service(config);
   
-  raft_service.Initialize(master_name, resolve_hostname, std::move(cq), &client_service);
+  raft_service.Initialize(master_name, resolve_hostname, cq.get(), &client_service);
   builder.RegisterService(&raft_service);
   
   // Assemble and start the server
   std::unique_ptr<Server> server(builder.BuildAndStart());
-
   LOG(INFO) << "Server listening on " << server_address;
 
   // Start the chunk server heartbeat monitor task after services have been

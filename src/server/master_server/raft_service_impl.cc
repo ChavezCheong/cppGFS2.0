@@ -36,7 +36,7 @@ void HandleSignal(int signum) {
     t.detach();
 }
 
-void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname, std::unique_ptr<ServerCompletionQueue> cq, ClientService::AsyncService* client_service){
+void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname, ServerCompletionQueue* cq, ClientService::AsyncService* client_service){
     signal(SIGALRM, &HandleSignal);
     alarmHandlerServer = this;
     this->resolve_hostname_ =  resolve_hostname;
