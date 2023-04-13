@@ -125,9 +125,14 @@ grpc::Status RaftServiceImpl::OpenFile(grpc::ServerContext* context,
      const protos::grpc::OpenFileRequest* request,
      protos::grpc::OpenFileReply* reply){
      // TODO: logic
-
+    if (currState == State::Leader) {
      LOG(INFO) << "God save our 512 project";
      return grpc::Status::OK;
+    }
+    else {
+        LOG(INFO) << "NOT LEADER!";
+        return grpc::Status::CANCELLED;
+    }
  }
 
 grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
