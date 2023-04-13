@@ -9,7 +9,9 @@ service RaftService {
     // add more functions to the services
     rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesReply){}
     rpc RequestVote(RequestVoteRequest) returns (RequestVoteReply){}
+}
 
+service ClientService {
     rpc OpenFile(OpenFileRequest) returns (OpenFileReply) {}
     // Delete |filename|. This effectively deletes all associated file chunks.
     // If |filename| doesn't exist yet, an error status is returned.

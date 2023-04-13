@@ -83,7 +83,7 @@ google::protobuf::util::Status ClientImpl::CreateFile(
 
   // Issue OpenFileReply rpc and check status
   auto primary_master_name(cache_manager_->GetPrimaryMaster().value());
-  auto try_get_master(master_metadata_service_client_map_.TryGetValue(primary_master_name));
+  auto try_get_master(raft_service_client_map_.TryGetValue(primary_master_name));
   StatusOr<OpenFileReply> open_file_or(
       try_get_master.first->SendRequest(open_file_request,
                                         client_context));
@@ -92,7 +92,7 @@ google::protobuf::util::Status ClientImpl::CreateFile(
   std::string master_name = "master_server_0";
   while (!open_file_or.ok() && count <= 3) {
     primary_master_name = master_name + std::to_string(count);
-    try_get_master = master_metadata_service_client_map_.TryGetValue(primary_master_name);
+    try_get_master = raft_service_client_map_.TryGetValue(primary_master_name);
     open_file_or = 
       try_get_master.first->SendRequest(open_file_request,
                                         client_context);
@@ -163,7 +163,7 @@ google::protobuf::util::Status ClientImpl::GetMetadataForChunk(
 
     // Issue OpenFileReply rpc and check status
     auto primary_master_name(cache_manager_->GetPrimaryMaster().value());
-    auto try_get_master(master_metadata_service_client_map_.TryGetValue(primary_master_name));
+    auto try_get_master(raft_service_client_map_.TryGetValue(primary_master_name));
     StatusOr<OpenFileReply> open_file_or(
       try_get_master.first->SendRequest(open_file_request,
                                         client_context));
@@ -172,7 +172,7 @@ google::protobuf::util::Status ClientImpl::GetMetadataForChunk(
     std::string master_name = "master_server_0";
     while (!open_file_or.ok() && count <= 3) {
       primary_master_name = master_name + std::to_string(count);
-      try_get_master = master_metadata_service_client_map_.TryGetValue(primary_master_name);
+      try_get_master = raft_service_client_map_.TryGetValue(primary_master_name);
       open_file_or = try_get_master.first->SendRequest(open_file_request,client_context);
       count ++;                            
     }
@@ -594,13 +594,13 @@ google::protobuf::util::Status ClientImpl::DeleteFile(
   common::SetClientContextDeadline(client_context, config_manager_);
 
   auto primary_master_name(cache_manager_->GetPrimaryMaster().value());
-  auto try_get_master(master_metadata_service_client_map_.TryGetValue(primary_master_name));
+  auto try_get_master(raft_service_client_map_.TryGetValue(primary_master_name));
   auto ret(try_get_master.first->SendRequest(delete_file_request));
   int count = 1;
   std::string master_name = "master_server_0";
   while (!ret.ok() && count <= 3) {
     primary_master_name = master_name + std::to_string(count);
-    try_get_master = master_metadata_service_client_map_.TryGetValue(primary_master_name);
+    try_get_master = raft_service_client_map_.TryGetValue(primary_master_name);
     ret = try_get_master.first->SendRequest(delete_file_request);
     count ++;                            
   }
@@ -659,12 +659,12 @@ ClientImpl::ClientImpl(common::ConfigManager* config_manager,
   }
 }
 
-void ClientImpl::RegisterMasterMetadataServiceClient(
+void ClientImpl::RegisterRaftServiceClient(
     const std::string& server_name, const std::string& server_address) {
   LOG(INFO) << "Establishing new connection to master metadata service client: "
             << server_name;
             
-  master_metadata_service_client_map_.TryInsert(
+  raft_service_client_map_.TryInsert(
       server_name,
       std::make_shared<service::MasterMetadataServiceClient>(
         grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials())
