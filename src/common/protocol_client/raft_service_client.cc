@@ -52,9 +52,11 @@ StatusOr<AppendEntriesReply> RaftServiceClient::SendRequest(
 
 StatusOr<OpenFileReply> ClientServiceClient::SendRequest(
     const OpenFileRequest& request, ClientContext& context) {
-  OpenFileReply reply;
-  grpc::Status status = stub_->OpenFile(&context, request, &reply);
-  return ReturnStatusOrFromGrpcStatus(reply, status);
+  ClientServiceClient::AsyncClientOpenCall* call;
+  call->response_reader = stub_->PrepareAsyncOpenFile(&context, request, &cq_);
+  call->response_reader->StartCall();
+  call->response_reader->Finish(&call->reply, &call->status, (void*)call);
+  return ReturnStatusOrFromGrpcStatus(call->reply, call->status);
 }
 
 StatusOr<OpenFileReply>ClientServiceClient::SendRequest(
@@ -66,8 +68,12 @@ StatusOr<OpenFileReply>ClientServiceClient::SendRequest(
 Status ClientServiceClient::SendRequest(
     const DeleteFileRequest& request, ClientContext& context) {
   google::protobuf::Empty reply;
-  grpc::Status status = stub_->DeleteFile(&context, request, &reply);
-  return ConvertGrpcStatusToProtobufStatus(status);
+
+  ClientServiceClient::AsyncClientDeleteCall* call;
+  call->response_reader = stub_->PrepareAsyncDeleteFile(&context, request, &cq_);
+  call->response_reader->StartCall();
+  call->response_reader->Finish(&call->reply, &call->status, (void*)call);
+  return ConvertGrpcStatusToProtobufStatus(call->status);
 }
 
 Status ClientServiceClient::SendRequest(
