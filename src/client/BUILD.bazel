@@ -40,5 +40,6 @@ cc_library(
         ":client_impl",
         "//src/common:utils",
         "@com_google_protobuf//:protobuf",
+        "//src/common/protocol_client:raft_service_client",
     ],
 )

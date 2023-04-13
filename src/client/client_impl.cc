@@ -655,7 +655,7 @@ ClientImpl::ClientImpl(common::ConfigManager* config_manager,
   // Instantiate the master service client hashmap
   for (std::string& server_name : config_manager_->GetAllMasterServers()) {
     std::string server_address = config_manager_->GetServerAddress(server_name);
-    RegisterMasterMetadataServiceClient(server_name, server_address);
+    RegisterRaftServiceClient(server_name, server_address);
   }
 }
 
@@ -666,7 +666,7 @@ void ClientImpl::RegisterRaftServiceClient(
             
   raft_service_client_map_.TryInsert(
       server_name,
-      std::make_shared<service::MasterMetadataServiceClient>(
+      std::make_shared<service::ClientServiceClient>(
         grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials())
       ));
 }
