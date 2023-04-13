@@ -22,7 +22,7 @@ public:
     enum State {Follower, Candidate, Leader};
     void AlarmCallback();
     void AlarmHeartbeatCallback();
-    void Initialize(std::string master_name, bool resolve_hostname, std::unique_ptr<grpc::ServerCompletionQueue> cq, protos::grpc::ClientService::AsyncService* client_service);
+    void Initialize(std::string master_name, bool resolve_hostname, grpc::ServerCompletionQueue* cq, protos::grpc::ClientService::AsyncService* client_service);
 
 private:
     // Handle AppendEntries request sent by Raft server
