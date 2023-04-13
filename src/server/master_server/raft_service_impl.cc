@@ -148,7 +148,7 @@ namespace gfs
                 LogEntry new_log;
                 OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
                 new_log.set_allocated_open_file(new_request);
-                new_log.set_index(0);
+                new_log.set_index(log_.size()+1);
                 new_log.set_term(currentTerm);
                 log_.push_back(new_log);
                 for (auto entry : log_) {
@@ -237,6 +237,9 @@ namespace gfs
 
             LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid();
 
+            for (auto log : log_) {
+                LOG(INFO) << log.term() << " and  " << log.open_file().filename();
+            }
             // Testing purposes only, once the logs start working we're ging to
             // remove this
 
@@ -509,9 +512,9 @@ namespace gfs
                     std::async(std::launch::async, [&, server_name]()
                                {
                 // create reply and send
-                // AppendEntriesRequest request = createAppendEntriesRequest(server_name);
-                AppendEntriesRequest request;
-                request.set_term(currentTerm);
+                AppendEntriesRequest request = createAppendEntriesRequest(server_name);
+                // AppendEntriesRequest request;
+                // request.set_term(currentTerm);
                 auto client = masterServerClients[server_name];
                 auto append_entries_reply = client->SendRequest(request);
 
@@ -560,8 +563,9 @@ namespace gfs
             request.set_prevlogindex(prev_log_index);
 
             // term of prevLogIndex entry
-            request.set_prevlogterm(log_[prev_log_index].term());
-
+            if (!log_.empty()) {
+                request.set_prevlogterm(log_[prev_log_index].term());
+            }
             request.set_leadercommit(commitIndex);
 
             // log entries to store
