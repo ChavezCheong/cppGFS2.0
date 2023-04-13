@@ -16,6 +16,9 @@ using protos::grpc::RequestVoteRequest;
 using protos::grpc::RequestVoteReply;
 using protos::grpc::AppendEntriesRequest;
 using protos::grpc::AppendEntriesReply;
+using protos::grpc::OpenFileRequest;
+using protos::grpc::OpenFileReply;
+using protos::grpc::DeleteFileRequest;
 
 
 namespace gfs {
@@ -43,6 +46,32 @@ StatusOr<AppendEntriesReply> RaftServiceClient::SendRequest(
 
 StatusOr<AppendEntriesReply> RaftServiceClient::SendRequest(
     const AppendEntriesRequest& request) {
+  ClientContext default_context;
+  return SendRequest(request, default_context);
+}
+
+StatusOr<OpenFileReply> ClientServiceClient::SendRequest(
+    const OpenFileRequest& request, ClientContext& context) {
+  OpenFileReply reply;
+  grpc::Status status = stub_->OpenFile(&context, request, &reply);
+  return ReturnStatusOrFromGrpcStatus(reply, status);
+}
+
+StatusOr<OpenFileReply>ClientServiceClient::SendRequest(
+    const OpenFileRequest& request) {
+  ClientContext default_context;
+  return SendRequest(request, default_context);
+}
+
+Status ClientServiceClient::SendRequest(
+    const DeleteFileRequest& request, ClientContext& context) {
+  google::protobuf::Empty reply;
+  grpc::Status status = stub_->DeleteFile(&context, request, &reply);
+  return ConvertGrpcStatusToProtobufStatus(status);
+}
+
+Status ClientServiceClient::SendRequest(
+    const DeleteFileRequest& request) {
   ClientContext default_context;
   return SendRequest(request, default_context);
 }
