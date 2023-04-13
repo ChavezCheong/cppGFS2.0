@@ -36,7 +36,7 @@ void HandleSignal(int signum) {
     t.detach();
 }
 
-void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname, ServerCompletionQueue* cq, ClientService::AsyncService* client_service){
+void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname, ClientService::AsyncService* client_service){
     signal(SIGALRM, &HandleSignal);
     alarmHandlerServer = this;
     this->resolve_hostname_ =  resolve_hostname;
@@ -393,8 +393,8 @@ void RaftServiceImpl::reset_election_timeout(){
         return;
     }
 
-    int ELECTION_TIMEOUT_LOW = 10000;
-    int ELECTION_TIMEOUT_HIGH = 20000;
+    int ELECTION_TIMEOUT_LOW = 1000;
+    int ELECTION_TIMEOUT_HIGH = 2000;
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -451,6 +451,7 @@ void RaftServiceImpl::SendAppendEntries(){
                 // create reply and send
                 // AppendEntriesRequest request = createAppendEntriesRequest(server_name);
                 AppendEntriesRequest request;
+                request.set_term(currentTerm);
                 auto client = masterServerClients[server_name];
                 auto append_entries_reply = client->SendRequest(request);
 
@@ -491,7 +492,6 @@ void RaftServiceImpl::SendAppendEntries(){
 }
 
 protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(std::string server_name){
-    lock_.Lock();
     AppendEntriesRequest request;
     request.set_term(currentTerm);
     request.set_leaderid(currLeader);
@@ -510,7 +510,6 @@ protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(s
     for(int j = prev_log_index + 1; j < log_.size(); j++){
         LogEntry* entry = request.add_entries();
     }
-    lock_.Unlock();
     return request;
 }
 

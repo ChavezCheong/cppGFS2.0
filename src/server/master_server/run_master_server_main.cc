@@ -80,14 +80,13 @@ int main(int argc, char **argv)
   ClientService::AsyncService client_service;
   LOG(INFO) << "client_service at " << &client_service;
   builder.RegisterService(&client_service);
-  std::unique_ptr<ServerCompletionQueue> cq = builder.AddCompletionQueue();
+  // std::unique_ptr<ServerCompletionQueue> cq = builder.AddCompletionQueue();
 
   // // Register a synchronous service for Raft fault tolerance
   RaftServiceImpl raft_service(config);
   
-  raft_service.Initialize(master_name, resolve_hostname, cq.get(), &client_service);
+  raft_service.Initialize(master_name, resolve_hostname, &client_service);
   builder.RegisterService(&raft_service);
-  
   // Assemble and start the server
   std::unique_ptr<Server> server(builder.BuildAndStart());
   LOG(INFO) << "Server listening on " << server_address;
