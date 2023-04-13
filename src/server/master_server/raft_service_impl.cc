@@ -104,6 +104,7 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     protos::grpc::RequestVoteReply* reply){
     // TODO: implement logic here
 
+    lock_.Lock();
     LOG(INFO) << "Handle Request Vote RPC from " << request->candidateid();
 
     reply->set_term(currentTerm);
@@ -111,6 +112,7 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
 
     // reply false if term < currentTerm
     if (request->term() < currentTerm){
+        lock_.Unlock();
         return grpc::Status::OK;
     }
     // increment term if RPC contains higher term and convert to follower
@@ -121,7 +123,10 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         ConvertToFollower();
     }
 
-    if (currState == State::Leader) return grpc::Status::OK;
+    if (currState == State::Leader){ 
+        lock_.Lock();
+        return grpc::Status::OK;
+    }
 
     // if votedFor is null or candidateId, and candidates 
     // log is at least as up to date as receiver's log, grant vote
@@ -136,11 +141,13 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         LOG(INFO) << "Server voted for " << request->candidateid();
     }
     else{
+        lock_.Unlock();
         return grpc::Status::OK;
     }
 
     // TODO: add timer for election to timeout when necessary
 
+    lock_.Unlock();
     // reset election when 
     reset_election_timeout();
 
@@ -265,6 +272,8 @@ void RaftServiceImpl::ConvertToCandidate(){
         std::future<std::pair<std::string, StatusOr<RequestVoteReply>>>>
         request_vote_results;
 
+    lock_.Lock();
+
     for(auto server_name : all_servers){        
         LOG(INFO) << "Sending request vote RPC to server " << server_name;
         request_vote_results.push_back(
@@ -290,6 +299,8 @@ void RaftServiceImpl::ConvertToCandidate(){
                     server_name, request_vote_reply);
         }));
     }
+
+    lock_.Unlock();
 
     // count the votes
     for(int i = 0; i < all_servers.size(); ++i){
@@ -369,6 +380,8 @@ void RaftServiceImpl::reset_heartbeat_timeout(){
 
 // TODO: implement logic here
 void RaftServiceImpl::ConvertToLeader(){
+
+    lock_.Lock();
     currState = State::Leader;
 
     // initialize nextIndex and matchIndex
@@ -376,6 +389,8 @@ void RaftServiceImpl::ConvertToLeader(){
         nextIndex[server_name] = log_.size();
         matchIndex[server_name] = 0;
     }
+
+    lock_.Unlock();
 
 
     // Upon election, send empty AppendEntries RPC to all other servers
@@ -391,6 +406,8 @@ void RaftServiceImpl::SendAppendEntries(){
         std::future<std::pair<std::string, StatusOr<AppendEntriesReply>>>>
         append_entries_results;
 
+    lock_.Lock();
+
     for(auto server_name : all_servers){
         LOG(INFO) << "Sending an empty AppendEntries RPC upon election to server" << server_name;
         append_entries_results.push_back(
@@ -405,6 +422,8 @@ void RaftServiceImpl::SendAppendEntries(){
                     server_name, append_entries_reply);
         }));
     }
+
+    lock_.Unlock();
 
     while(!append_entries_results.empty()){
         auto response_future = std::move(append_entries_results.front());
@@ -436,6 +455,7 @@ void RaftServiceImpl::SendAppendEntries(){
 }
 
 protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(std::string server_name){
+    lock_.Lock();
     AppendEntriesRequest request;
     request.set_term(currentTerm);
     request.set_leaderid(currLeader);
@@ -454,7 +474,7 @@ protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(s
     for(int j = prev_log_index + 1; j < log_.size(); j++){
         LogEntry* entry = request.add_entries();
     }
-
+    lock_.Unlock();
     return request;
 }
 
