@@ -514,11 +514,6 @@ namespace gfs
                 // create reply and send
                 AppendEntriesRequest request = createAppendEntriesRequest(server_name);
                 // AppendEntriesRequest request;
-<<<<<<< HEAD
-                request.set_term(currentTerm);
-=======
-                // request.set_term(currentTerm);
->>>>>>> 32eecd83bdc8879133f00e8ad54c01c6565f2aee
                 auto client = masterServerClients[server_name];
                 auto append_entries_reply = client->SendRequest(request);
 
@@ -580,11 +575,6 @@ namespace gfs
             return request;
         }
 
-    }
-<<<<<<< HEAD
-
-}
-
 protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(std::string server_name){
     AppendEntriesRequest request;
     request.set_term(currentTerm);
@@ -615,6 +605,4 @@ protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(s
 
 
 }
-=======
->>>>>>> 32eecd83bdc8879133f00e8ad54c01c6565f2aee
 }
