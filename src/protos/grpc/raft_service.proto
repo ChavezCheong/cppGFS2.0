@@ -23,7 +23,6 @@ service ClientService{
 message LogEntry {
     uint32 index = 1;
     uint32 term = 2;
-    
     oneof command{
         OpenFileRequest open_file = 3;
         DeleteFileRequest delete_file = 4;
