@@ -498,6 +498,15 @@ namespace gfs
 
         void RaftServiceImpl::reset_heartbeat_timeout()
         {
+
+            /*If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
+• If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex
+• If successful: update nextIndex and matchIndex for
+follower (§5.3)
+• If AppendEntries fails because of log inconsistency:
+decrement nextIndex and retry (§5.3)
+• If there exists an N such that N > commitIndex, a majority
+of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5.3, §5.4).*/
             int HEARTBEAT_TIMEOUT_LOW = 100;
             int HEARTBEAT_TIMEOUT_HIGH = 200;
 
@@ -508,6 +517,26 @@ namespace gfs
             float heartbeat_timeout = dis(gen);
 
             SetAlarm(heartbeat_timeout);
+            uint32_t index_threshold;
+            uint32_t matchIndArr[3];
+            int ind = 0;
+            for(auto& it : matchIndex){
+                matchIndArr[ind] = it.second;
+                ind++;
+            }
+            std::sort(matchIndArr, matchIndArr+3);
+            index_threshold = matchIndArr[1];
+
+            for(int N = commitIndex; N <= index_threshold; N++){
+                // just in case this loops break
+                if(N >= log_.size()){
+                    break;
+                }
+                if(log_[N].term() == currentTerm){
+                    commitIndex = N;
+                    break;
+                }
+            }
         }
 
         // We should be going into this function holding the lock. We should leave it holding the lock.
