@@ -668,7 +668,7 @@ void ClientImpl::RegisterRaftServiceClient(
             
   raft_service_client_map_.TryInsert(
       server_name,
-      std::make_shared<service::ClientServiceClient>(
+      std::make_shared<service::RaftServiceClient>(
         grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials())
       ));
 }

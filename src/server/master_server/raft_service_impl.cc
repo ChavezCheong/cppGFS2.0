@@ -17,7 +17,6 @@ using protos::grpc::AppendEntriesReply;
 using google::protobuf::util::Status;
 using google::protobuf::util::StatusOr;
 using protos::grpc::LogEntry;
-using protos::grpc::ClientService;
 using grpc::ServerCompletionQueue;
 
 
@@ -36,7 +35,7 @@ void HandleSignal(int signum) {
     t.detach();
 }
 
-void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname, ClientService::AsyncService* client_service){
+void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname){
     signal(SIGALRM, &HandleSignal);
     alarmHandlerServer = this;
     this->resolve_hostname_ =  resolve_hostname;

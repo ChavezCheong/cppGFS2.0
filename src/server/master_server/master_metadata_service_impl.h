@@ -15,7 +15,7 @@ namespace service {
 
 // The synchronous implementation for handling MasterMetadataService requests
 class MasterMetadataServiceImpl final
-    : public protos::grpc::ClientService::Service {
+    : public protos::grpc::RaftService::Service {
  public:
   MasterMetadataServiceImpl(common::ConfigManager* config_manager, 
                             bool resolve_hostname = false) : 
@@ -82,7 +82,7 @@ class MasterMetadataServiceImpl final
 // The asynchronous implementation for handling MasterMetadataService requests
 // TODO(tugan): support handling client requests asynchronously
 class MasterMetadataServiceAsyncImpl final
-    : public protos::grpc::ClientService::Service {};
+    : public protos::grpc::RaftService::Service {};
 
 }  // namespace service
 }  // namespace gfs

@@ -77,15 +77,15 @@ int main(int argc, char **argv)
   builder.RegisterService(&chunk_server_mgr_service);
 
   // Re
-  ClientService::AsyncService client_service;
-  LOG(INFO) << "client_service at " << &client_service;
-  builder.RegisterService(&client_service);
+  // ClientService::AsyncService client_service;
+  // LOG(INFO) << "client_service at " << &client_service;
+  // builder.RegisterService(&client_service);
   // std::unique_ptr<ServerCompletionQueue> cq = builder.AddCompletionQueue();
 
   // // Register a synchronous service for Raft fault tolerance
   RaftServiceImpl raft_service(config);
   
-  raft_service.Initialize(master_name, resolve_hostname, &client_service);
+  raft_service.Initialize(master_name, resolve_hostname);
   builder.RegisterService(&raft_service);
   // Assemble and start the server
   std::unique_ptr<Server> server(builder.BuildAndStart());
