@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 #include <deque>
+#include <thread>
 
 using protos::grpc::RequestVoteRequest;
 using protos::grpc::AppendEntriesRequest;
@@ -24,7 +25,13 @@ namespace service{
 RaftServiceImpl* alarmHandlerServer;
 
 void HandleSignal(int signum) {
-    alarmHandlerServer->AlarmCallback();
+    // Create a new thread and run the AlarmCallback method in it.
+    std::thread t([](){
+        alarmHandlerServer->AlarmCallback();
+    });
+
+    // Detach the new thread so it can run independently.
+    t.detach();
 }
 
 void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname){
