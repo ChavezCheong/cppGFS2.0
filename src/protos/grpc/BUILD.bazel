@@ -121,6 +121,8 @@ proto_library(
     name = "raft_service_proto",
     srcs = ["raft_service.proto"],
     visibility = ["//visibility:public"],
+    deps = ["//src/protos/grpc:master_metadata_service_proto",
+            "@com_google_protobuf//:empty_proto",]
 )
 
 cc_proto_library(

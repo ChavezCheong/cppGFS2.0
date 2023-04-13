@@ -1,11 +1,19 @@
 syntax = "proto3";
 
 package protos.grpc;
+import "src/protos/grpc/master_metadata_service.proto";
+import "google/protobuf/empty.proto";
+
 
 service RaftService {
     // add more functions to the services
     rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesReply){}
     rpc RequestVote(RequestVoteRequest) returns (RequestVoteReply){}
+
+    rpc OpenFile(OpenFileRequest) returns (OpenFileReply) {}
+    // Delete |filename|. This effectively deletes all associated file chunks.
+    // If |filename| doesn't exist yet, an error status is returned.
+    rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty) {}
 }
 
 
@@ -13,16 +21,10 @@ message LogEntry {
     uint32 index = 1;
     uint32 term = 2;
     
-    enum CommandType{
-        CHUNK_UPDATE = 0;
-        CHUNK_FAILURE = 1;
-        CHUNK_LEASE_REQUEST = 2;
-        CLIENT_NEW_FILE = 3;
-        CLIENT_EDIT_FILE = 4;
-        CLIENT_DELETE_FILE = 5;
+    oneof command{
+        OpenFileRequest open_file = 3;
+        DeleteFileRequest delete_file = 4;
     }
-    CommandType command = 3;
-    repeated string commandData = 4;
 }
 
 message AppendEntriesRequest {
