@@ -102,13 +102,15 @@ void RaftServiceImpl::AlarmCallback() {
     // - Follower: If election timeout elapses without receiving AppendEntries
         // RPC from current leader or granting vote to candidate: convert to candidate
 
+    lock_.Lock();
     if(currState == State::Candidate or currState == State::Follower){
         ConvertToCandidate();
     }
-    if(currState == State::Leader){
+    else if(currState == State::Leader){
         SendAppendEntries();
         reset_heartbeat_timeout();
     }
+    lock_.Unlock();
 }
 
 void RaftServiceImpl::SetAlarm(int after_ms) {
@@ -143,9 +145,7 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         LOG(INFO) << "Server converting to follower ";
         currentTerm = request->term();
         ConvertToFollower();
-        lock_.Unlock();
-        raft_service_log_manager_->UpdateCurrentTerm(request->term());
-        lock_.Lock();
+        //raft_service_log_manager_->UpdateCurrentTerm(request->term());
     }
 
     if (currState == State::Leader){ 
@@ -164,10 +164,7 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         // TODO: set votedFor in persistent storage and currentTerm
         // TODO: add some way to get current server id for logging
         LOG(INFO) << "Server voted for " << request->candidateid();
-        lock_.Unlock();
-        raft_service_log_manager_->UpdateVotedFor(request->candidateid());
-        lock_.Lock();
-
+        //raft_service_log_manager_->UpdateVotedFor(request->candidateid());
     }
     else{
         lock_.Unlock();
@@ -196,8 +193,6 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
 
     
     reset_election_timeout();
-    lock_.Unlock();
-    return grpc::Status::OK;
 
     // TODO: implement logic here
     
@@ -251,14 +246,10 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
 
         if(index >= log_.size()){
             log_.push_back(entry);
-            lock_.Unlock();
-            raft_service_log_manager_->DeleteLogEntries(log_.size());
-            lock_.Lock();
+            // raft_service_log_manager_->DeleteLogEntries(log_.size());
         }
 
-        lock_.Unlock();
-        raft_service_log_manager_->AppendLogEntries(log_);
-        lock_.Lock();
+        // raft_service_log_manager_->AppendLogEntries(log_);
 
         // If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
         if(request->leadercommit() > commitIndex){
@@ -298,7 +289,7 @@ void RaftServiceImpl::ConvertToFollower(){
     votedFor = -1;
 }
 
-// TODO: implement logic here
+// hold lock while entering
 void RaftServiceImpl::ConvertToCandidate(){
     currState = State::Candidate;
     // Once a server is converted to candidate, we increase the current term
@@ -315,7 +306,6 @@ void RaftServiceImpl::ConvertToCandidate(){
         std::future<std::pair<std::string, StatusOr<RequestVoteReply>>>>
         request_vote_results;
 
-    lock_.Lock();
 
     int requestTerm = currentTerm;
     for(auto server_name : all_servers){        
@@ -350,10 +340,9 @@ void RaftServiceImpl::ConvertToCandidate(){
         // TODO: abstract this into configurable variable
         // wait for future with a timeout time 
         lock_.Unlock();
-        std::future_status status = request_vote_results[i].wait_for(std::chrono::milliseconds(600));
+        std::future_status status = request_vote_results[i].wait_for(std::chrono::milliseconds(500));
         lock_.Lock();
         if (currState != State::Candidate | currentTerm != requestTerm) {
-            lock_.Unlock();
             return;
         }
         // check if future has resolved
@@ -391,22 +380,21 @@ void RaftServiceImpl::ConvertToCandidate(){
     if(numVotes >= 1){
         ConvertToLeader();
     }
-    lock_.Unlock();
 }
 
 RaftServiceImpl::State RaftServiceImpl::GetCurrentState(){
     return currState;
 }
 
-
+// hold lock
 void RaftServiceImpl::reset_election_timeout(){
     // TODO: add a Timer here
     if(currState == State::Leader){
         return;
     }
 
-    int ELECTION_TIMEOUT_LOW = 5000;
-    int ELECTION_TIMEOUT_HIGH = 8000;
+    int ELECTION_TIMEOUT_LOW = 10000;
+    int ELECTION_TIMEOUT_HIGH = 20000;
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -441,13 +429,10 @@ void RaftServiceImpl::ConvertToLeader(){
         matchIndex[server_name] = 0;
     }
 
-    lock_.Unlock();
-
 
     // Upon election, send empty AppendEntries RPC to all other servers
     SendAppendEntries();
     // TODO: make a function that resets heartbeat timeout
-        lock_.Lock();
     reset_election_timeout();
     LOG(INFO) << "Server converts to leader";
 }
@@ -458,7 +443,6 @@ void RaftServiceImpl::SendAppendEntries(){
         std::future<std::pair<std::string, StatusOr<AppendEntriesReply>>>>
         append_entries_results;
 
-    lock_.Lock();
 
     for(auto server_name : all_servers){
         LOG(INFO) << "Sending an empty AppendEntries RPC upon election to server" << server_name;
@@ -474,7 +458,7 @@ void RaftServiceImpl::SendAppendEntries(){
                     server_name, append_entries_reply);
         }));
     }
-
+    return;
     lock_.Unlock();
 
     while(!append_entries_results.empty()){
@@ -483,7 +467,7 @@ void RaftServiceImpl::SendAppendEntries(){
 
         // TODO: abstract this into configurable variable
         // wait for future with a timeout time 
-        std::future_status status = response_future.wait_for(std::chrono::seconds(1));
+        std::future_status status = response_future.wait_for(std::chrono::milliseconds(500));
 
         // check if the future has resolved
         if (status == std::future_status::ready) {
