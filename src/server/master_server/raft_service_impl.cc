@@ -461,8 +461,8 @@ void RaftServiceImpl::SendAppendEntries(){
         append_entries_results.push_back(
             std::async(std::launch::async, [&, server_name](){
                 // create reply and send
-                // AppendEntriesRequest request = createAppendEntriesRequest(server_name);
-                AppendEntriesRequest request;
+                AppendEntriesRequest request = createAppendEntriesRequest(server_name);
+                // AppendEntriesRequest request;
                 request.set_term(currentTerm);
                 auto client = masterServerClients[server_name];
                 auto append_entries_reply = client->SendRequest(request);
@@ -511,12 +511,18 @@ protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(s
     int prev_log_index = nextIndex[server_name] - 1;
 
     //index of log entry immediately preceding new ones
-    request.set_prevlogindex(prev_log_index);
-
+    if(log_.size() == 0){
+        request.set_prevlogindex(-1);
+        request.set_prevlogterm(-1);
+        request.set_leadercommit(0);
+    }
+    else{
+        request.set_prevlogindex(prev_log_index);
     // term of prevLogIndex entry
-    request.set_prevlogterm(log_[prev_log_index].term());
-
-    request.set_leadercommit(commitIndex);
+        request.set_prevlogterm(log_[prev_log_index].term());
+        request.set_leadercommit(commitIndex);
+    }
+    
 
     // log entries to store
     for(int j = prev_log_index + 1; j < log_.size(); j++){
