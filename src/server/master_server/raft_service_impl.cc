@@ -65,8 +65,23 @@ void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname,
     raft_service_log_manager_ = RaftServiceLogManager::GetInstance();
     LOG(INFO) << "Starting Raft Service";
     currState = State::Follower;
-    votedFor = 0;
-    currentTerm = 0;
+    auto vote = raft_service_log_manager_->GetVotedFor();
+    if(vote.ok()){
+        votedFor = vote.value();
+    }
+    else{
+        votedFor = 0;
+    }
+
+    auto curr_term = raft_service_log_manager_->GetCurrentTerm();
+
+    if(curr_term.ok()){
+        currentTerm = curr_term.value();
+    }
+    else{
+        currentTerm = 0;
+    }
+    
     reset_election_timeout(); 
 }
 
@@ -130,10 +145,13 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         LOG(INFO) << "Server converting to follower ";
         currentTerm = request->term();
         ConvertToFollower();
+        lock_.Unlock();
+        raft_service_log_manager_->UpdateCurrentTerm(request->term());
+        lock_.Lock();
     }
 
     if (currState == State::Leader){ 
-        lock_.Lock();
+        lock_.Unlock();
         return grpc::Status::OK;
     }
 
@@ -148,6 +166,10 @@ grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
         // TODO: set votedFor in persistent storage and currentTerm
         // TODO: add some way to get current server id for logging
         LOG(INFO) << "Server voted for " << request->candidateid();
+        lock_.Unlock();
+        raft_service_log_manager_->UpdateVotedFor(request->candidateid());
+        lock_.Lock();
+
     }
     else{
         lock_.Unlock();
