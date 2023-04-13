@@ -11,6 +11,7 @@
 #include "src/server/master_server/master_metadata_service_impl.h"
 #include "src/server/master_server/raft_service_log_manager.h"
 #include "raft_service_impl.h"
+#include "src/protos/grpc/raft_service.grpc.pb.h"
 
 using gfs::common::ConfigManager;
 using gfs::server::ChunkServerHeartBeatMonitorTask;
@@ -18,13 +19,17 @@ using gfs::service::MasterChunkServerManagerServiceImpl;
 using gfs::service::MasterMetadataServiceImpl;
 using gfs::service::RaftServiceImpl;
 using gfs::service::RaftServiceLogManager;
+using protos::grpc::ClientService;
 using grpc::Server;
 using grpc::ServerBuilder;
+using grpc::ServerCompletionQueue;
 
 ABSL_FLAG(std::string, config_path, "data/config.yml", "/path/to/config.yml");
 ABSL_FLAG(std::string, master_name, "master_server_01",
           "run as the given master, as defined in the config");
 ABSL_FLAG(bool, use_docker_dns_server, false, "use docker's DNS server");
+
+
 
 int main(int argc, char **argv)
 {
@@ -71,11 +76,17 @@ int main(int argc, char **argv)
   MasterChunkServerManagerServiceImpl chunk_server_mgr_service;
   builder.RegisterService(&chunk_server_mgr_service);
 
+  // Re
+  ClientService::AsyncService client_service;
+  builder.RegisterService(&client_service);
+  std::unique_ptr<ServerCompletionQueue> cq = builder.AddCompletionQueue();
+
   // Register a synchronous service for Raft fault tolerance
   RaftServiceImpl raft_service(config);
-  raft_service.Initialize(master_name, resolve_hostname);
+  
+  raft_service.Initialize(master_name, resolve_hostname, std::move(cq), &client_service);
   builder.RegisterService(&raft_service);
-
+  
   // Assemble and start the server
   std::unique_ptr<Server> server(builder.BuildAndStart());
 
