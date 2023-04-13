@@ -5,33 +5,6 @@ package protos.grpc;
 import "google/protobuf/empty.proto";
 import "src/protos/metadata.proto";
 
-service MasterMetadataService {
-  // Return the chunk handle, version, and associated replica locations
-  // for a given |filename| at |chunk_index|. 
-  //
-  // For |APPEND| mode, |chunk_index| is not required, ignored if specified, 
-  // because the master will decide which chunk handle the client should write 
-  // to for the append operation; if no concurrent append exists, this is 
-  // guaranteed to be the chunk handle for the last chunk index.
-  //
-  // If either |filename| or |chunk_index| doesn't exist, an error status with 
-  // empty reply is returned if |create_if_not_exists| is false; otherwise, the
-  // master will create the chunk, and initialize its creation on all chunk 
-  // servers, before returning to client. If chunk creation fails, the open
-  // operation is considered to have failed.
-  //
-  // The master does not enforce or guarantee a |filename| will always have
-  // continuous |chunk_index|. Fragmentation and missing intermediate chunks may 
-  // exist if client forgets, or fails, to create an intermediate |chunk_index|.
-  // In this case, it is up to the client to retry, when applicable.
-  rpc OpenFile(OpenFileRequest) returns (OpenFileReply) {}
-
-  // Delete |filename|. This effectively deletes all associated file chunks.
-  // If |filename| doesn't exist yet, an error status is returned.
-  rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty) {}
-
-  // TODO(tugan): add gRPC calls for snapshot operations
-}
 
 message OpenFileRequest {
   // Absolute file name or directory name

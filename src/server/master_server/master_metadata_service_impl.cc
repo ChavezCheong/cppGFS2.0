@@ -483,6 +483,7 @@ grpc::Status MasterMetadataServiceImpl::OpenFile(ServerContext* context,
                                                  const OpenFileRequest* request,
                                                  OpenFileReply* reply) {
   // Dispatch different mode to different handle function
+  LOG(INFO) <<"awef";
   switch (request->mode()) {
     case OpenFileRequest::CREATE:
       return HandleFileCreation(request, reply);

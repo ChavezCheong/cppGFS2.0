@@ -39,6 +39,7 @@ StatusOr<RequestVoteReply> RaftServiceClient::SendRequest(
 
 StatusOr<AppendEntriesReply> RaftServiceClient::SendRequest(
     const AppendEntriesRequest& request, ClientContext& context) {
+  std::cout << "hello";
   AppendEntriesReply reply;
   grpc::Status status = stub_->AppendEntries(&context, request, &reply);
   return ReturnStatusOrFromGrpcStatus(reply, status);

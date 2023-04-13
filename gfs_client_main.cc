@@ -14,7 +14,7 @@ using google::protobuf::util::StatusOr;
 ABSL_FLAG(std::string, config_path, "data/config.yml", "/path/to/config.yml");
 ABSL_FLAG(std::string, master_name, "master_server_01",
           "connect to the given master server, as defined in the config");
-ABSL_FLAG(bool, use_docker_dns_server, false, "use docker's DNS server");
+ABSL_FLAG(bool, use_docker_dns_server, true, "use docker's DNS server");
 
 // CRUD Flag
 ABSL_FLAG(std::string, mode, "",
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
   Status init_status = gfs::client::init_client(
       /*config_path=*/absl::GetFlag(FLAGS_config_path),
       /*master_name=*/absl::GetFlag(FLAGS_master_name),
-      /*resolve_hostname=*/!absl::GetFlag(FLAGS_use_docker_dns_server));
+      /*resolve_hostname=*/absl::GetFlag(FLAGS_use_docker_dns_server));
   if (!init_status.ok()) {
     LOG(ERROR) << "Failed initializing GFS client: " << init_status;
     return 1;

@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
   auto chunk_server_channel =
       grpc::CreateChannel(chunk_server_address, credentials);
 
-  MasterMetadataServiceClient metadata_client(master_channel);
+//   MasterMetadataServiceClient metadata_client(master_channel);
   // Master-side client wrapper to issue requests to chunk server
   ChunkServerServiceMasterServerClient chunk_server_master_client(
       chunk_server_channel);
@@ -105,17 +105,17 @@ int main(int argc, char** argv) {
   open_request.set_create_if_not_exists(true);
 
   grpc::ClientContext client_context;
-  LogRequestAndResponse(
-      open_request, metadata_client.SendRequest(open_request, client_context));
+//   LogRequestAndResponse(
+//       open_request, metadata_client.SendRequest(open_request, client_context));
 
   // Prepare a mock gRPC: DeleteFile
   DeleteFileRequest delete_request;
   delete_request.set_filename("/tmp/test_delete_file");
 
   grpc::ClientContext client_context2;
-  Status status = metadata_client.SendRequest(delete_request, client_context2);
+//   Status status = metadata_client.SendRequest(delete_request, client_context2);
   LOG(INFO) << "Request sent: " << delete_request.DebugString();
-  LOG(INFO) << "Request status: " << status.ToString();
+//   LOG(INFO) << "Request status: " << status.ToString();
 
   // Prepare a mock gRPC: GrantLease
   GrantLeaseRequest grant_lease_request;
@@ -124,9 +124,9 @@ int main(int argc, char** argv) {
   grant_lease_request.mutable_lease_expiration_time()->set_seconds(1690735960);
 
   grpc::ClientContext client_context3;
-  LogRequestAndResponse(grant_lease_request,
-                        chunk_server_master_client.SendRequest(
-                            grant_lease_request, client_context3));
+//   LogRequestAndResponse(grant_lease_request,
+//                         chunk_server_master_client.SendRequest(
+//                             grant_lease_request, client_context3));
 
   // Prepare a mock gRPC: RevokeLease
   RevokeLeaseRequest revoke_lease_request;
@@ -135,18 +135,18 @@ int main(int argc, char** argv) {
       1690735960);
 
   grpc::ClientContext client_context4;
-  LogRequestAndResponse(revoke_lease_request,
-                        chunk_server_master_client.SendRequest(
-                            revoke_lease_request, client_context4));
+//   LogRequestAndResponse(revoke_lease_request,
+//                         chunk_server_master_client.SendRequest(
+//                             revoke_lease_request, client_context4));
 
   // Prepare a mock gRPC: InitFileChunk
   InitFileChunkRequest init_file_request;
   init_file_request.set_chunk_handle("9d2a2342-97f9-11ea");
 
   grpc::ClientContext client_context5;
-  LogRequestAndResponse(init_file_request,
-                        chunk_server_master_client.SendRequest(
-                            init_file_request, client_context5));
+//   LogRequestAndResponse(init_file_request,
+//                         chunk_server_master_client.SendRequest(
+//                             init_file_request, client_context5));
 
   // Prepare a mock gRPC: ReadFileChunk
   ReadFileChunkRequest read_file_request;
@@ -156,9 +156,9 @@ int main(int argc, char** argv) {
   read_file_request.set_length(10);
 
   grpc::ClientContext client_context6;
-  LogRequestAndResponse(
-      read_file_request,
-      chunk_server_gfs_client.SendRequest(read_file_request, client_context6));
+//   LogRequestAndResponse(
+//       read_file_request,
+//       chunk_server_gfs_client.SendRequest(read_file_request, client_context6));
 
   // Prepare a mock gRPC: SendChunkData
   SendChunkDataRequest send_data_request;
@@ -167,9 +167,9 @@ int main(int argc, char** argv) {
   send_data_request.set_checksum("XA0F2FJ824132LI2");
 
   grpc::ClientContext client_context8;
-  LogRequestAndResponse(
-      send_data_request,
-      chunk_server_gfs_client.SendRequest(send_data_request, client_context8));
+//   LogRequestAndResponse(
+//       send_data_request,
+//       chunk_server_gfs_client.SendRequest(send_data_request, client_context8));
 
   // Prepare a mock gRPC: WriteFileChunk
   WriteFileChunkRequestHeader write_file_request_header;
@@ -192,18 +192,18 @@ int main(int argc, char** argv) {
   advance_version_request.set_new_chunk_version(2);
 
   grpc::ClientContext client_context10;
-  LogRequestAndResponse(advance_version_request,
-                        chunk_server_master_client.SendRequest(
-                            advance_version_request, client_context10));
+//   LogRequestAndResponse(advance_version_request,
+//                         chunk_server_master_client.SendRequest(
+//                             advance_version_request, client_context10));
 
   // Prepare a mock gRPC: ApplyMutations
   ApplyMutationsRequest apply_mutations_request;
   *apply_mutations_request.add_headers() = write_file_request_header;
 
   grpc::ClientContext client_context11;
-  LogRequestAndResponse(apply_mutations_request,
-                        chunk_server_intercom_client.SendRequest(
-                            apply_mutations_request, client_context11));
+//   LogRequestAndResponse(apply_mutations_request,
+//                         chunk_server_intercom_client.SendRequest(
+//                             apply_mutations_request, client_context11));
 
   return 0;
 }

@@ -20,6 +20,8 @@ cc_library(
         "//src/server/master_server:metadata_manager",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/container:flat_hash_map",
+                "//src/protos/grpc:cc_raft_service_grpc",
+        "//src/common/protocol_client:raft_service_client",
     ],
 )
 

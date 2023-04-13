@@ -92,10 +92,11 @@ google::protobuf::util::Status ClientImpl::CreateFile(
   std::string master_name = "master_server_0";
   while (!open_file_or.ok() && count <= 3) {
     primary_master_name = master_name + std::to_string(count);
+    LOG(INFO) << "Client Sending to master " << primary_master_name; 
     try_get_master = raft_service_client_map_.TryGetValue(primary_master_name);
     open_file_or = 
-      try_get_master.first->SendRequest(open_file_request,
-                                        client_context);
+      try_get_master.first->SendRequest(open_file_request
+                                        );
     count ++;                            
   }
   if (!open_file_or.ok()) {
@@ -654,7 +655,8 @@ ClientImpl::ClientImpl(common::ConfigManager* config_manager,
 
   // Instantiate the master service client hashmap
   for (std::string& server_name : config_manager_->GetAllMasterServers()) {
-    std::string server_address = config_manager_->GetServerAddress(server_name);
+    std::string server_address = config_manager_->GetServerAddress(server_name, resolve_hostname);
+    LOG(INFO) << "Server Address " << server_address;
     RegisterRaftServiceClient(server_name, server_address);
   }
 }

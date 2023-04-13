@@ -6,7 +6,7 @@
 #include "src/common/config_manager.h"
 #include "src/common/protocol_client/chunk_server_service_server_client.h"
 #include "src/common/utils.h"
-#include "src/protos/grpc/master_metadata_service.grpc.pb.h"
+#include "src/protos/grpc/raft_service.grpc.pb.h"
 #include "src/server/master_server/chunk_server_manager.h"
 #include "src/server/master_server/metadata_manager.h"
 
@@ -15,7 +15,7 @@ namespace service {
 
 // The synchronous implementation for handling MasterMetadataService requests
 class MasterMetadataServiceImpl final
-    : public protos::grpc::MasterMetadataService::Service {
+    : public protos::grpc::ClientService::Service {
  public:
   MasterMetadataServiceImpl(common::ConfigManager* config_manager, 
                             bool resolve_hostname = false) : 
@@ -82,7 +82,7 @@ class MasterMetadataServiceImpl final
 // The asynchronous implementation for handling MasterMetadataService requests
 // TODO(tugan): support handling client requests asynchronously
 class MasterMetadataServiceAsyncImpl final
-    : public protos::grpc::MasterMetadataService::Service {};
+    : public protos::grpc::ClientService::Service {};
 
 }  // namespace service
 }  // namespace gfs
