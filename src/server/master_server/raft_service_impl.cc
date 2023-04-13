@@ -559,13 +559,17 @@ namespace gfs
             int prev_log_index = nextIndex[server_name] - 1;
 
             // index of log entry immediately preceding new ones
-            request.set_prevlogindex(prev_log_index);
-
-            // term of prevLogIndex entry
-            if (!log_.empty()) {
-                request.set_prevlogterm(log_[prev_log_index].term());
+            if(log_.size() == 0){
+                request.set_prevlogindex(-1);
+                request.set_prevlogterm(-1);
+                request.set_leadercommit(0);
             }
-            request.set_leadercommit(commitIndex);
+            else{
+                request.set_prevlogindex(prev_log_index);
+            // term of prevLogIndex entry
+                request.set_prevlogterm(log_[prev_log_index].term());
+                request.set_leadercommit(commitIndex);
+            }
 
             // log entries to store
             for (int j = prev_log_index + 1; j < log_.size(); j++)
@@ -574,35 +578,6 @@ namespace gfs
             }
             return request;
         }
-
-protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(std::string server_name){
-    AppendEntriesRequest request;
-    request.set_term(currentTerm);
-    request.set_leaderid(currLeader);
-
-    int prev_log_index = nextIndex[server_name] - 1;
-
-    //index of log entry immediately preceding new ones
-    if(log_.size() == 0){
-        request.set_prevlogindex(-1);
-        request.set_prevlogterm(-1);
-        request.set_leadercommit(0);
-    }
-    else{
-        request.set_prevlogindex(prev_log_index);
-    // term of prevLogIndex entry
-        request.set_prevlogterm(log_[prev_log_index].term());
-        request.set_leadercommit(commitIndex);
-    }
-    
-
-    // log entries to store
-    for(int j = prev_log_index + 1; j < log_.size(); j++){
-        LogEntry* entry = request.add_entries();
-    }
-    return request;
-}
-
 
 }
 }
