@@ -81,7 +81,16 @@ void RaftServiceImpl::Initialize(std::string master_name, bool resolve_hostname,
     else{
         currentTerm = 0;
     }
-    
+
+    auto get_log = raft_service_log_manager_->GetLogEntries();
+
+    if(get_log.ok()){
+        log_ = get_log.value();
+    }
+    else{
+        log_ = std::vector<LogEntry>(0);
+    }
+
     reset_election_timeout(); 
 }
 
@@ -189,11 +198,16 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
     const protos::grpc::AppendEntriesRequest* request,
     protos::grpc::AppendEntriesReply* reply){
 
+    lock_.Lock();
+
     LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid();
     
     // Testing purposes only, once the logs start working we're ging to
     // remove this
+
+    
     reset_election_timeout();
+    lock_.Unlock();
     return grpc::Status::OK;
 
     // TODO: implement logic here
@@ -207,6 +221,7 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
         // currentTerm = request->term();
         reply->set_term(currentTerm);
         reply->set_success(false);
+        lock_.Unlock();
         return grpc::Status::OK; // might need to change this
     }
     // increment term if RPC contains higher term and convert to follower
@@ -227,7 +242,8 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
     if(prev_log_index >= log_.size() || log_[prev_log_index].term() != prev_log_term){
         reply->set_term(currentTerm);
         reply->set_success(false);
-        return grpc::Status::OK; // might need to change this
+        lock_.Unlock();
+        return grpc::Status::OK; 
     }
 
     // iterate over entry and append to the log
@@ -246,7 +262,14 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
 
         if(index >= log_.size()){
             log_.push_back(entry);
+            lock_.Unlock();
+            raft_service_log_manager_->DeleteLogEntries(log_.size());
+            lock_.Lock();
         }
+
+        lock_.Unlock();
+        raft_service_log_manager_->AppendLogEntries(log_);
+        lock_.Lock();
 
         // If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
         if(request->leadercommit() > commitIndex){
@@ -272,7 +295,7 @@ grpc::Status RaftServiceImpl::AppendEntries(grpc::ServerContext* context,
     */
 
 
-    
+    lock_.Unlock();
 
     // If the leader's commit index is greater than ours, update our commit index
 
