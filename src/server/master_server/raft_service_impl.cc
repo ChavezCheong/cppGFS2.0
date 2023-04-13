@@ -20,6 +20,8 @@ using protos::grpc::OpenFileReply;
 using protos::grpc::OpenFileRequest;
 using protos::grpc::RequestVoteReply;
 using protos::grpc::RequestVoteRequest;
+using protos::grpc::DeleteFileRequest;
+using google::protobuf::Empty;
 
 namespace gfs
 {
@@ -154,6 +156,35 @@ namespace gfs
                 for (auto entry : log_) {
                     LOG(INFO) << entry.term();
                     LOG(INFO) << entry.open_file().filename();
+                }
+                SendAppendEntries();
+                lock_.Unlock();
+                return grpc::Status::OK;
+            }
+            else
+            {
+                LOG(INFO) << "NOT LEADER!";
+                return grpc::Status::CANCELLED;
+            }
+        }
+
+        grpc::Status RaftServiceImpl::DeleteFile(grpc::ServerContext *context,
+                                               const protos::grpc::DeleteFileRequest *request,
+                                               google::protobuf::Empty *reply)
+        {
+            if (currState == State::Leader)
+            {
+                lock_.Lock();
+                LOG(INFO) << "Handle delete file request";
+                LogEntry new_log;
+                DeleteFileRequest* new_request = new protos::grpc::DeleteFileRequest(*request);
+                new_log.set_allocated_delete_file(new_request);
+                new_log.set_index(log_.size()+1);
+                new_log.set_term(currentTerm);
+                log_.push_back(new_log);
+                for (auto entry : log_) {
+                    LOG(INFO) << entry.term();
+                    LOG(INFO) << entry.delete_file().filename();
                 }
                 SendAppendEntries();
                 lock_.Unlock();

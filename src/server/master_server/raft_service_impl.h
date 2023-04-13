@@ -39,6 +39,10 @@ private:
                                const protos::grpc::OpenFileRequest* request,
                                protos::grpc::OpenFileReply* reply) override;
 
+    grpc::Status DeleteFile(grpc::ServerContext *context,
+                                               const protos::grpc::DeleteFileRequest *request,
+                                               google::protobuf::Empty *reply);
+
     void SendRequestVote(); // TODO: change this later
     void SendAppendEntries(); //TODO: change this later
 
