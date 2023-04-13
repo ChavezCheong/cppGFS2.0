@@ -121,6 +121,14 @@ void RaftServiceImpl::SetAlarm(int after_ms) {
     return;
 }
 
+grpc::Status RaftServiceImpl::OpenFile(grpc::ServerContext* context,
+     const protos::grpc::OpenFileRequest* request,
+     protos::grpc::OpenFileReply* reply){
+     // TODO: logic
+
+     LOG(INFO) << "God save our 512 project";
+     return grpc::Status::OK;
+ }
 
 grpc::Status RaftServiceImpl::RequestVote(grpc::ServerContext* context,
     const protos::grpc::RequestVoteRequest* request,

@@ -101,14 +101,14 @@ class ClientImpl {
   CacheManager* cache_manager_;
   
   // Reference to the MasterMetadataService client
-  std::shared_ptr<service::ClientServiceClient> 
+  std::shared_ptr<service::RaftServiceClient> 
       raft_service_client_;
 
   // Reference to MasterMetadataService clients which can be accessed by the
   // master names, the client will have to connect to different 
   // master servers. 
   common::parallel_hash_map<
-      std::string, std::shared_ptr<service::ClientServiceClient>> 
+      std::string, std::shared_ptr<service::RaftServiceClient>> 
           raft_service_client_map_;
 
   // Reference to ChunkServerServiceGfs clients which can be accessed by the

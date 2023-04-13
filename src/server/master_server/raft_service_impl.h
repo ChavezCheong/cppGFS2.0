@@ -35,6 +35,10 @@ private:
                                const protos::grpc::RequestVoteRequest* request,
                                protos::grpc::RequestVoteReply* reply) override;
 
+    grpc::Status OpenFile(grpc::ServerContext* context,
+                               const protos::grpc::OpenFileRequest* request,
+                               protos::grpc::OpenFileReply* reply) override;
+
     void SendRequestVote(); // TODO: change this later
     void SendAppendEntries(); //TODO: change this later
 
