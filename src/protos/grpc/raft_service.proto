@@ -9,8 +9,10 @@ service RaftService {
     // add more functions to the services
     rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesReply){}
     rpc RequestVote(RequestVoteRequest) returns (RequestVoteReply){}
+}
 
-      // Return the chunk handle, version, and associated replica locations
+service ClientService{
+          // Return the chunk handle, version, and associated replica locations
   // for a given |filename| at |chunk_index|. 
   //
   // For |APPEND| mode, |chunk_index| is not required, ignored if specified, 
@@ -33,7 +35,6 @@ service RaftService {
   // Delete |filename|. This effectively deletes all associated file chunks.
   // If |filename| doesn't exist yet, an error status is returned.
   rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty) {}
-
 }
 
 

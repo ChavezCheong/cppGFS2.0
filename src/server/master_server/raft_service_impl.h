@@ -41,12 +41,12 @@ private:
     // Handle DeleteFile request sent by client
     grpc::Status DeleteFile(grpc::ServerContext* context,
                                 const protos::grpc::DeleteFileRequest* request,
-                                google::protobuf::Empty* reply) override;
+                                google::protobuf::Empty* reply);
 
     // Handle OpenFile request sent by client
     grpc::Status OpenFile(grpc::ServerContext* context,
                                 const protos::grpc::OpenFileRequest* request,
-                                protos::grpc::OpenFileReply* reply) override;
+                                protos::grpc::OpenFileReply* reply);
 
     // Commit all entries, return latest entry
     Command ApplyStateMachine();

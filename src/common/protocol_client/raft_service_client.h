@@ -35,6 +35,16 @@ class RaftServiceClient {
       const protos::grpc::AppendEntriesRequest& request,
       grpc::ClientContext& context);
 
+ private:
+  // The gRPC client for managing protocols defined in RaftSerice
+  std::unique_ptr<protos::grpc::RaftService::Stub> stub_;
+};
+
+class ClientServiceClient {
+ public:
+  ClientServiceClient(std::shared_ptr<grpc::Channel> channel)
+      : stub_(protos::grpc::ClientService::NewStub(channel)) {}
+
   // Send a OpenFile grpc to the master servers. Only the leader will process it.
   google::protobuf::util::StatusOr<protos::grpc::OpenFileReply> SendRequest(
       const protos::grpc::OpenFileRequest& request);
@@ -51,8 +61,9 @@ class RaftServiceClient {
 
  private:
   // The gRPC client for managing protocols defined in RaftSerice
-  std::unique_ptr<protos::grpc::RaftService::Stub> stub_;
+  std::unique_ptr<protos::grpc::ClientService::Stub> stub_;
 };
+
 
 }  // namespace service
 }  // namespace gfs
