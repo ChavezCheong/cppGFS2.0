@@ -59,9 +59,40 @@ class ClientServiceClient {
       const protos::grpc::DeleteFileRequest& request,
       grpc::ClientContext& context);
 
+  void AsyncCompleteRPC();
+
  private:
+ struct AsyncClientOpenCall {
+    // Container for the data we expect from the server.
+    protos::grpc::OpenFileReply reply;
+
+    // Context for the client. It could be used to convey extra information to
+    // the server and/or tweak certain RPC behaviors.
+    grpc::ClientContext context;
+
+    // Storage for the status of the RPC upon completion.
+    grpc::Status status;
+
+    std::unique_ptr<grpc::ClientAsyncResponseReader<protos::grpc::OpenFileReply>> response_reader;
+  };
+
+  struct AsyncClientDeleteCall {
+    // Container for the data we expect from the server.
+    google::protobuf::Empty reply;
+
+    // Context for the client. It could be used to convey extra information to
+    // the server and/or tweak certain RPC behaviors.
+    grpc::ClientContext context;
+
+    // Storage for the status of the RPC upon completion.
+    grpc::Status status;
+
+    std::unique_ptr<grpc::ClientAsyncResponseReader<google::protobuf::Empty>> response_reader;
+  };
   // The gRPC client for managing protocols defined in RaftSerice
   std::unique_ptr<protos::grpc::ClientService::Stub> stub_;
+
+  grpc::CompletionQueue cq_;
 };
 
 
