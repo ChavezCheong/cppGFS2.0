@@ -157,9 +157,9 @@ namespace gfs
             // TODO: logic
             if (currState == State::Leader)
             {
+                LOG(INFO) << "Handle OpenFile Request from client";
                 if(request->mode() == protos::grpc::OpenFileRequest::CREATE){
                     lock_.Lock();
-                    LOG(INFO) << "God save our 512 project";
                     LogEntry new_log;
                     OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
                     new_log.set_allocated_open_file(new_request);
@@ -170,6 +170,7 @@ namespace gfs
                         LOG(INFO) << entry.term();
                         LOG(INFO) << entry.open_file().filename();
                     }
+                    LOG(INFO) << "(LEADER) Replicated Create File request to followers";
                     SendAppendEntries();
                     lock_.Unlock();
                 }
@@ -177,7 +178,7 @@ namespace gfs
             }
             else
             {
-                LOG(INFO) << "NOT LEADER!";
+                LOG(INFO) << "(NOT LEADER) Reject request from client to get metadata";
                 return grpc::Status::CANCELLED;
             }
         }
@@ -189,7 +190,7 @@ namespace gfs
             lock_.Lock();
             if (currState == State::Leader)
             {
-                LOG(INFO) << "Handle delete file request";
+                LOG(INFO) << "Handle delete file request from client";
                 LogEntry new_log;
                 DeleteFileRequest* new_request = new protos::grpc::DeleteFileRequest(*request);
                 new_log.set_allocated_delete_file(new_request);
@@ -206,7 +207,7 @@ namespace gfs
             }
             else
             {
-                LOG(INFO) << "NOT LEADER!";
+                LOG(INFO) << "(NOT LEADER) Reject request from client to get metadata";
                 lock_.Unlock();
                 return grpc::Status::CANCELLED;
             }
@@ -457,7 +458,6 @@ namespace gfs
                 // check if future has resolved
                 if (status == std::future_status::ready)
                 {
-                    LOG(INFO) << "Future instance successfully executed";
                     auto request_vote_result = request_vote_results[i].get();
                     auto server_name = request_vote_result.first;
                     auto request_vote_reply = request_vote_result.second;
