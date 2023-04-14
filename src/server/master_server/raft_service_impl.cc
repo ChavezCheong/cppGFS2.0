@@ -108,7 +108,8 @@ namespace gfs
                 LogEntry empty_entry;
                 empty_entry.set_term(0);
                 empty_entry.set_index(0);
-                log_ = std::vector<LogEntry>(1, empty_entry);
+                log_ = std::vector<LogEntry>(0);
+                log_.push_back(empty_entry);
             }
 
             commitIndex = 0;
@@ -276,7 +277,7 @@ namespace gfs
 
             lock_.Lock();
 
-            LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid();
+            LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid() << "Current Log size: " << log_.size();
 
             for (auto log : log_) {
                 LOG(INFO) << log.term() << " and  " << log.open_file().filename();
@@ -340,6 +341,7 @@ namespace gfs
 
                 if (index >= log_.size())
                 {
+                    LOG(INFO) << "pushing it back";
                     log_.push_back(entry);
                     // raft_service_log_manager_->DeleteLogEntries(log_.size());
                 }
@@ -558,7 +560,7 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
             // initialize nextIndex and matchIndex
             for (std::string server_name : all_servers)
             {
-                nextIndex[server_name] = log_.size() + 1;
+                nextIndex[server_name] = log_.size();
                 matchIndex[server_name] = 0;
             }
 
@@ -577,7 +579,7 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
 
             for (auto server_name : all_servers)
             {
-                LOG(INFO) << "Sending an AppendEntries RPC to server" << server_name;
+                // LOG(INFO) << "Sending an AppendEntries RPC to server" << server_name;
                 append_entries_results.push_back(
                     std::async(std::launch::async, [&, server_name]()
                                {
@@ -611,7 +613,7 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
                     {
                         AppendEntriesReply reply = append_entries_reply.value();
                         // TODO: add logic to resend appendentries if needed
-                        LOG(INFO) << "Received AppendEntriesReply " << reply.SerializeAsString();
+                        //LOG(INFO) << "Received AppendEntriesReply " << reply.SerializeAsString();
                     }
                     else
                     {
@@ -639,7 +641,8 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
             // term of prevLogIndex entry
                 request.set_prevlogterm(log_[prev_log_index].term());
                 request.set_leadercommit(commitIndex);
-                LOG(INFO) << "non empty log " << prev_log_index << " " << log_[prev_log_index].term() << " " << commitIndex;
+
+                LOG(INFO) << "non empty log" << prev_log_index << " " << log_[prev_log_index].term() << " " << commitIndex << " " <<  log_.size();
             }
             // log entries to store
             for (int j = prev_log_index + 1; j < log_.size(); j++)
