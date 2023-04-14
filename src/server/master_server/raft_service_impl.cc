@@ -172,9 +172,9 @@ namespace gfs
                                                const protos::grpc::DeleteFileRequest *request,
                                                google::protobuf::Empty *reply)
         {
+            lock_.Lock();
             if (currState == State::Leader)
             {
-                lock_.Lock();
                 LOG(INFO) << "Handle delete file request";
                 LogEntry new_log;
                 DeleteFileRequest* new_request = new protos::grpc::DeleteFileRequest(*request);
@@ -193,6 +193,7 @@ namespace gfs
             else
             {
                 LOG(INFO) << "NOT LEADER!";
+                lock_.Unlock();
                 return grpc::Status::CANCELLED;
             }
         }
