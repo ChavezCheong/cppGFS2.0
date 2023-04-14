@@ -355,10 +355,9 @@ namespace gfs
                 {
                     LOG(INFO) << "pushing it back";
                     log_.push_back(entry);
-                    // raft_service_log_manager_->DeleteLogEntries(log_.size());
+                    raft_service_log_manager_->DeleteLogEntries(log_.size());
                 }
 
-                // raft_service_log_manager_->AppendLogEntries(log_);
 
                 // If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
                 if (request->leadercommit() > commitIndex)
@@ -367,6 +366,8 @@ namespace gfs
                     commitIndex = std::min(request->leadercommit(), (uint32_t)log_.size() - 1);
                 }
             }
+
+            raft_service_log_manager_->AppendLogEntries(std::vector<LogEntry>(log_.begin() + prev_log_index, log_.end()));
 
             reply->set_success(true);
             ConvertToFollower();
