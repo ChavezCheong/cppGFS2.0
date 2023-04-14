@@ -1,6 +1,7 @@
 #include "raft_service_impl.h"
 #include "absl/synchronization/mutex.h"
 #include "src/protos/grpc/raft_service.grpc.pb.h"
+#include "src/server/master_server/master_metadata_service_impl.h"
 #include "src/common/system_logger.h"
 #include <csignal>
 #include <random>
@@ -13,6 +14,7 @@
 using google::protobuf::util::Status;
 using google::protobuf::util::StatusOr;
 using grpc::ServerCompletionQueue;
+using gfs::service::MasterMetadataServiceImpl;
 using protos::grpc::AppendEntriesReply;
 using protos::grpc::AppendEntriesRequest;
 using protos::grpc::LogEntry;
@@ -28,6 +30,7 @@ namespace gfs
     namespace service
     {
         RaftServiceImpl *alarmHandlerServer;
+        MasterMetadataServiceImpl* MetadataHandler;
 
         void HandleSignal(int signum)
         {
@@ -159,7 +162,7 @@ namespace gfs
                 }
                 SendAppendEntries();
                 lock_.Unlock();
-                return grpc::Status::OK;
+                return MetadataHandler->OpenFile(context, request, reply);;
             }
             else
             {
@@ -484,8 +487,8 @@ namespace gfs
                 return;
             }
 
-            int ELECTION_TIMEOUT_LOW = 1000;
-            int ELECTION_TIMEOUT_HIGH = 2000;
+            int ELECTION_TIMEOUT_LOW = 10000;
+            int ELECTION_TIMEOUT_HIGH = 20000;
 
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -507,8 +510,8 @@ follower (§5.3)
 decrement nextIndex and retry (§5.3)
 • If there exists an N such that N > commitIndex, a majority
 of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5.3, §5.4).*/
-            int HEARTBEAT_TIMEOUT_LOW = 100;
-            int HEARTBEAT_TIMEOUT_HIGH = 200;
+            int HEARTBEAT_TIMEOUT_LOW = 500;
+            int HEARTBEAT_TIMEOUT_HIGH = 1000;
 
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -638,6 +641,5 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
             }
             return request;
         }
-
-}
+    }
 }

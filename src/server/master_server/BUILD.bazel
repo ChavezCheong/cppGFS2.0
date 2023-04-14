@@ -125,6 +125,7 @@ cc_library(
         "//src/common:config_manager",
         ":raft_service_log_manager",
         "//src/protos/grpc:cc_raft_service_grpc",
+        ":master_metadata_service_impl",
         "//src/common/protocol_client:raft_service_client",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/synchronization",
