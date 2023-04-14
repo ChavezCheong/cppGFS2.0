@@ -83,7 +83,7 @@ int main(int argc, char **argv)
   // std::unique_ptr<ServerCompletionQueue> cq = builder.AddCompletionQueue();
 
   // // Register a synchronous service for Raft fault tolerance
-  RaftServiceImpl raft_service(config);
+  RaftServiceImpl raft_service(config, resolve_hostname);
   
   raft_service.Initialize(master_name, resolve_hostname);
   builder.RegisterService(&raft_service);

@@ -30,7 +30,6 @@ namespace gfs
     namespace service
     {
         RaftServiceImpl *alarmHandlerServer;
-        MasterMetadataServiceImpl* MetadataHandler;
 
         void HandleSignal(int signum)
         {
@@ -169,7 +168,9 @@ namespace gfs
                 }
                 SendAppendEntries();
                 lock_.Unlock();
-                return MetadataHandler->OpenFile(context, request, reply);
+                LOG(INFO) << "NO SEGFAULT HERE";
+                MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
+                return MetadataHandler.OpenFile(context, request, reply);
             }
             else
             {
@@ -198,7 +199,8 @@ namespace gfs
                 }
                 SendAppendEntries();
                 lock_.Unlock();
-                return MetadataHandler->DeleteFile(context, request, reply);
+                MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
+                return MetadataHandler.DeleteFile(context, new_request, reply);
             }
             else
             {
