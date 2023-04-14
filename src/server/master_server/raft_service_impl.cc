@@ -64,7 +64,7 @@ namespace gfs
             {
                 auto server_address = config_manager_->GetServerAddress(server_name, resolve_hostname_);
                 LOG(INFO) << "Establishing new connection to server: "
-                          << server_address;
+                           << server_address;
                 masterServerClients[server_name] =
                     std::make_shared<RaftServiceClient>(
                         grpc::CreateChannel(server_address,
@@ -159,23 +159,22 @@ namespace gfs
             {
                 LOG(INFO) << "Handle OpenFile Request from client.";
                 if(request->mode() == protos::grpc::OpenFileRequest::CREATE){
-                    lock_.Lock();
                     LogEntry new_log;
                     OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
                     new_log.set_allocated_open_file(new_request);
                     new_log.set_index(log_.size());
                     new_log.set_term(currentTerm);
                     log_.push_back(new_log);
-                    for (auto entry : log_) {
-                        LOG(INFO) << entry.term();
-                        LOG(INFO) << entry.open_file().filename();
-                    }
+                    // for (auto entry : log_) {
+                    //     LOG(INFO) << entry.term();
+                    //     LOG(INFO) << entry.open_file().filename();
+                    // }
                     LOG(INFO) << "(LEADER) Replicated Create File request to followers.";
                     SendAppendEntries();
                 }
                 MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
                 lock_.Unlock();
-                return MetadataHandler.OpenFile(context, request, reply);
+                return MetadataHandler.OpenFile(context, request, reply, true);
             }
             else
             {
@@ -199,10 +198,10 @@ namespace gfs
                 new_log.set_index(log_.size());
                 new_log.set_term(currentTerm);
                 log_.push_back(new_log);
-                for (auto entry : log_) {
-                    LOG(INFO) << entry.term();
-                    LOG(INFO) << entry.delete_file().filename();
-                }
+                // for (auto entry : log_) {
+                //     LOG(INFO) << entry.term();
+                //     LOG(INFO) << entry.delete_file().filename();
+                // }
                 SendAppendEntries();
                 lock_.Unlock();
                 MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
@@ -266,6 +265,7 @@ namespace gfs
             }
             else
             {
+                LOG(INFO) << "no vote";
                 lock_.Unlock();
                 return grpc::Status::OK;
             }
@@ -288,7 +288,10 @@ namespace gfs
 
             LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid();
             LOG(INFO) << "Current Log Size: " << log_.size();
+            if(log_.size() > 1)
+            {
             LOG(INFO) << "Last Log Entry: " << log_[log_.size() - 1].open_file().filename();
+            }
 
             // Testing purposes only, once the logs start working we're ging to
             // remove this
@@ -316,7 +319,7 @@ namespace gfs
                 LOG(INFO) << "Server converting to follower ";
                 currentTerm = request->term();
                 raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
-                LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
+                // LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
                 ConvertToFollower();
             }
 
@@ -326,8 +329,6 @@ namespace gfs
 
             if (prev_log_index >= log_.size() || log_[prev_log_index].term() != prev_log_term)
             {
-                LOG(INFO) << "prev : " << prev_log_index << ", size: " << log_.size();
-                LOG(INFO) << "our term " << log_[prev_log_index].term() << " their term: " << prev_log_term;
                 reply->set_term(currentTerm);
                 reply->set_success(false);
                 lock_.Unlock();
@@ -340,7 +341,6 @@ namespace gfs
             for (const auto &entry : request->entries())
             {
                 int term = entry.term();
-                LOG(INFO) << "term of log we are appending: " << term;
 
                 // TODO: implement append entries logic here
                 // might need to fix
@@ -353,7 +353,6 @@ namespace gfs
 
                 if (index >= log_.size())
                 {
-                    LOG(INFO) << "pushing it back";
                     log_.push_back(entry);
                     raft_service_log_manager_->DeleteLogEntries(log_.size());
                 }
@@ -382,6 +381,16 @@ namespace gfs
             • If AppendEntries fails because of log inconsistency:
             decrement nextIndex and retry
             */
+            // Commit every entry up till leaderindex
+            // Check if we need to 
+            if (request->leadercommit() > lastApplied) {
+                for (uint32_t commit_index = lastApplied; commit_index <= request->leadercommit(); ++commit_index) {
+                    OpenFileRequest* new_request = new OpenFileRequest(log_[commit_index - 1].open_file());
+                    OpenFileReply* new_reply;
+                    MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
+                    MetadataHandler.OpenFile(context, new_request, new_reply, false);
+                }
+            }
 
             lock_.Unlock();
 
@@ -479,7 +488,7 @@ namespace gfs
                             LOG(INFO) << "Server converting to follower ";
                             currentTerm = reply.term();
                             raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
-                            LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
+                            // LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
                             ConvertToFollower();
                             return;
                         }
@@ -537,8 +546,8 @@ namespace gfs
             decrement nextIndex and retry (§5.3)
             • If there exists an N such that N > commitIndex, a majority
             of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5.3, §5.4).*/
-            int HEARTBEAT_TIMEOUT_LOW = 500;
-            int HEARTBEAT_TIMEOUT_HIGH = 500;
+            int HEARTBEAT_TIMEOUT_LOW = 100;
+            int HEARTBEAT_TIMEOUT_HIGH = 100;
 
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -648,17 +657,16 @@ namespace gfs
                             LOG(INFO) << "Server converting to follower ";
                             currentTerm = reply.term();
                             raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
-                            LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
+                            // LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
                             ConvertToFollower();
                             return;
                         }
                         else if (reply.success()){
                             nextIndex[server_name] = maxIndex + 1;
                             matchIndex[server_name] = maxIndex;
-                            LOG(INFO) << "successful from " << server_name << " " << nextIndex[server_name] << " " << matchIndex[server_name];
+                            // LOG(INFO) << "successful from " << server_name << " " << nextIndex[server_name] << " " << matchIndex[server_name];
                         }
                         else{
-                            LOG(INFO) << "resending to " << server_name;
                             nextIndex[server_name] -= 1;
                             append_entries_results.push_back(std::async(std::launch::async, [&, server_name]()
                                {// create reply and send
@@ -694,7 +702,6 @@ namespace gfs
             // term of prevLogIndex entry
                 request.set_prevlogterm(log_[prev_log_index].term());
                 request.set_leadercommit(commitIndex);
-                LOG(INFO) <<  server_name << " non empty log: " << nextIndex[server_name]  << " " << matchIndex[server_name] << " " <<  log_.size();
             }
             // log entries to store
             for (int j = prev_log_index + 1; j <= maxIndex; j++)

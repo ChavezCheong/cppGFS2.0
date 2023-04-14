@@ -36,7 +36,8 @@ class MasterMetadataServiceImpl final
   // Handle file creation request. This function is called by OpenFile
   // function to dispatch the task for creating a file
   grpc::Status HandleFileCreation(const protos::grpc::OpenFileRequest* request,
-                                  protos::grpc::OpenFileReply* reply);
+                                  protos::grpc::OpenFileReply* reply,
+                                  bool is_leader);
 
   // Handle file read request. This function is called by OpenFile
   // function to dispatch the task for read a file chunk
@@ -58,7 +59,8 @@ class MasterMetadataServiceImpl final
   // Handle an OpenFileRequest request sent by the client.
   grpc::Status OpenFile(grpc::ServerContext* context,
                         const protos::grpc::OpenFileRequest* request,
-                        protos::grpc::OpenFileReply* reply) override;
+                        protos::grpc::OpenFileReply* reply,
+                        bool is_leader);
 
   // Handle a DeleteFileRequest request sent by the client.
   grpc::Status DeleteFile(grpc::ServerContext* context,

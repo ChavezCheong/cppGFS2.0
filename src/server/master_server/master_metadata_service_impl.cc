@@ -138,7 +138,8 @@ grpc::Status MasterMetadataServiceImpl::HandleFileChunkCreation(
 
 grpc::Status MasterMetadataServiceImpl::HandleFileCreation(
     const protos::grpc::OpenFileRequest* request,
-    protos::grpc::OpenFileReply* reply) {
+    protos::grpc::OpenFileReply* reply,
+    bool is_leader) {
   // Step 1. Create file metadata
   const std::string& filename(request->filename());
   LOG(INFO) << "MasterMetadataService handling file creation: " << filename;
@@ -156,11 +157,11 @@ grpc::Status MasterMetadataServiceImpl::HandleFileCreation(
   } else {
     LOG(INFO) << "File metadata created for " << filename;
   }
-
+  if (is_leader) {
   // Step 2. Create the first file chunk for this file and allocate chunk
   // servers
   grpc::Status chunk_creation_status(HandleFileChunkCreation(request, reply));
-
+  
   // If we did not create chunk successfully during file creation, we roll back
   // and remove the file metadata and chunk metadata that got created along
   // the way.  
@@ -169,9 +170,12 @@ grpc::Status MasterMetadataServiceImpl::HandleFileCreation(
     metadata_manager()->DeleteFileAndChunkMetadata(filename);
   }
 
+  
   return chunk_creation_status;
+  } else {
+    return grpc::Status::OK;
+  }
 }
-
 grpc::Status MasterMetadataServiceImpl::HandleFileChunkRead(
     const protos::grpc::OpenFileRequest* request,
     protos::grpc::OpenFileReply* reply) {
@@ -481,12 +485,13 @@ MasterMetadataServiceImpl::GetOrCreateChunkServerProtocolClient(
 
 grpc::Status MasterMetadataServiceImpl::OpenFile(ServerContext* context,
                                                  const OpenFileRequest* request,
-                                                 OpenFileReply* reply) {
+                                                 OpenFileReply* reply,
+                                                 bool is_leader) {
   // Dispatch different mode to different handle function
   LOG(INFO) <<"awef";
   switch (request->mode()) {
     case OpenFileRequest::CREATE:
-      return HandleFileCreation(request, reply);
+      return HandleFileCreation(request, reply, is_leader);
     case OpenFileRequest::READ:
       return HandleFileChunkRead(request, reply);
     case OpenFileRequest::WRITE:
