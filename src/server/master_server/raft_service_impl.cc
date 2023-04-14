@@ -30,7 +30,6 @@ namespace gfs
     namespace service
     {
         RaftServiceImpl *alarmHandlerServer;
-        MasterMetadataServiceImpl* MetadataHandler;
 
         void HandleSignal(int signum)
         {
@@ -155,6 +154,7 @@ namespace gfs
                                                protos::grpc::OpenFileReply *reply)
         {
             // TODO: logic
+            lock_.Lock();
             if (currState == State::Leader)
             {
                 LOG(INFO) << "Handle OpenFile Request from client";
@@ -172,13 +172,15 @@ namespace gfs
                     }
                     LOG(INFO) << "(LEADER) Replicated Create File request to followers";
                     SendAppendEntries();
-                    lock_.Unlock();
                 }
-                return MetadataHandler->OpenFile(context, request, reply);
+                MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
+                lock_.Unlock();
+                return MetadataHandler.OpenFile(context, request, reply);
             }
             else
             {
                 LOG(INFO) << "(NOT LEADER) Reject request from client to get metadata";
+                lock_.Unlock();
                 return grpc::Status::CANCELLED;
             }
         }
@@ -203,7 +205,8 @@ namespace gfs
                 }
                 SendAppendEntries();
                 lock_.Unlock();
-                return MetadataHandler->DeleteFile(context, request, reply);
+                MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
+                return MetadataHandler.DeleteFile(context, new_request, reply);
             }
             else
             {
@@ -353,10 +356,9 @@ namespace gfs
                 {
                     LOG(INFO) << "pushing it back";
                     log_.push_back(entry);
-                    // raft_service_log_manager_->DeleteLogEntries(log_.size());
+                    raft_service_log_manager_->DeleteLogEntries(log_.size());
                 }
 
-                // raft_service_log_manager_->AppendLogEntries(log_);
 
                 // If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
                 if (request->leadercommit() > commitIndex)
@@ -365,6 +367,8 @@ namespace gfs
                     commitIndex = std::min(request->leadercommit(), (uint32_t)log_.size() - 1);
                 }
             }
+
+            raft_service_log_manager_->AppendLogEntries(std::vector<LogEntry>(log_.begin() + prev_log_index, log_.end()));
 
             reply->set_success(true);
             ConvertToFollower();
