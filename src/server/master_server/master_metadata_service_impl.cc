@@ -69,7 +69,7 @@ grpc::Status MasterMetadataServiceImpl::HandleFileChunkCreation(
   // a priority right now
   auto chunk_server_locations(chunk_server_manager().AllocateChunkServer(
       chunk_handle, num_of_chunk_replica));
-
+      
   // Prepare the OpenFileReply
   FileChunkMetadata metadata;
   metadata.set_chunk_handle(chunk_handle);

@@ -18,7 +18,7 @@ namespace service{
 class RaftServiceImpl final 
     : public protos::grpc::RaftService::Service {
 public:
-    RaftServiceImpl(common::ConfigManager* config_manager) : config_manager_(config_manager) {};
+    RaftServiceImpl(common::ConfigManager* config_manager, bool resolve_hostname) : config_manager_(config_manager), resolve_hostname_(resolve_hostname) {};
     enum State {Follower, Candidate, Leader};
     void AlarmCallback();
     void AlarmHeartbeatCallback();
