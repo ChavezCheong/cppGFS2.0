@@ -49,7 +49,7 @@ namespace gfs
             read_options_ = leveldb::ReadOptions();
             write_options_.sync = true;
 
-            raft_service_log_database_->Put(write_options_, "current_term", "0");
+            // raft_service_log_database_->Put(write_options_, "current_term", "0");
         }
 
         StatusOr<int> RaftServiceLogManager::GetCurrentTerm()

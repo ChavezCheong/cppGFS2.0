@@ -79,6 +79,7 @@ namespace gfs
             if (vote.ok())
             {
                 votedFor = vote.value();
+                LOG(INFO) << "Get votedFor " << votedFor << " from DB";
             }
             else
             {
@@ -90,6 +91,7 @@ namespace gfs
             if (curr_term.ok())
             {
                 currentTerm = curr_term.value();
+                LOG(INFO) << "Get current Term " << currentTerm << " from DB";
             }
             else
             {
@@ -233,7 +235,8 @@ namespace gfs
                 LOG(INFO) << "Server converting to follower ";
                 currentTerm = request->term();
                 ConvertToFollower();
-                // raft_service_log_manager_->UpdateCurrentTerm(request->term());
+                LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
+                raft_service_log_manager_->UpdateCurrentTerm(request->term());
             }
 
             if (currState == State::Leader)
@@ -253,7 +256,7 @@ namespace gfs
                 // TODO: set votedFor in persistent storage and currentTerm
                 // TODO: add some way to get current server id for logging
                 LOG(INFO) << "Server voted for " << request->candidateid();
-                // raft_service_log_manager_->UpdateVotedFor(request->candidateid());
+                raft_service_log_manager_->UpdateVotedFor(request->candidateid());
             }
             else
             {
@@ -307,6 +310,8 @@ namespace gfs
                 // TODO: add some way to get current servers address for logging purposes
                 LOG(INFO) << "Server converting to follower ";
                 currentTerm = request->term();
+                raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
+                LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
                 ConvertToFollower();
             }
 
@@ -383,6 +388,7 @@ namespace gfs
         {
             currState = State::Follower;
             votedFor = -1;
+            raft_service_log_manager_->UpdateVotedFor(votedFor);
         }
 
         // hold lock while entering
@@ -391,8 +397,11 @@ namespace gfs
             currState = State::Candidate;
             // Once a server is converted to candidate, we increase the current term
             currentTerm++;
+            raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
+            LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
             numVotes = 0;
             votedFor = serverId;
+            raft_service_log_manager_->UpdateVotedFor(votedFor);
 
             LOG(INFO) << "Server convert to candidate";
 
@@ -464,6 +473,8 @@ namespace gfs
                         {
                             LOG(INFO) << "Server converting to follower ";
                             currentTerm = reply.term();
+                            raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
+                            LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
                             ConvertToFollower();
                             return;
                         }
@@ -631,6 +642,8 @@ namespace gfs
                         if (reply.term() > currentTerm){
                             LOG(INFO) << "Server converting to follower ";
                             currentTerm = reply.term();
+                            raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
+                            LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
                             ConvertToFollower();
                             return;
                         }
@@ -676,12 +689,7 @@ namespace gfs
             // term of prevLogIndex entry
                 request.set_prevlogterm(log_[prev_log_index].term());
                 request.set_leadercommit(commitIndex);
-<<<<<<< HEAD
                 LOG(INFO) <<  server_name << " non empty log: " << nextIndex[server_name]  << " " << matchIndex[server_name] << " " <<  log_.size();
-=======
-
-                LOG(INFO) << "non empty log" << prev_log_index << " " << log_[prev_log_index].term() << " " << commitIndex << " " <<  log_.size();
->>>>>>> 7310c7e47e2a720fb3a8b90fdf9a6c5c78559296
             }
             // log entries to store
             for (int j = prev_log_index + 1; j <= maxIndex; j++)
