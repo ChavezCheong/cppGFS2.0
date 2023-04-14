@@ -101,8 +101,14 @@ namespace gfs
             }
             else
             {
-                log_ = std::vector<LogEntry>(0);
+                // initialize with an empty entry
+                LogEntry empty_entry;
+                empty_entry.set_term(0);
+                empty_entry.set_index(0);
+                log_ = std::vector<LogEntry>(1, empty_entry);
             }
+
+            commitIndex = 0;
 
             reset_election_timeout();
         }
@@ -150,7 +156,7 @@ namespace gfs
                 LogEntry new_log;
                 OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
                 new_log.set_allocated_open_file(new_request);
-                new_log.set_index(log_.size()+1);
+                new_log.set_index(log_.size());
                 new_log.set_term(currentTerm);
                 log_.push_back(new_log);
                 for (auto entry : log_) {
@@ -179,7 +185,7 @@ namespace gfs
                 LogEntry new_log;
                 DeleteFileRequest* new_request = new protos::grpc::DeleteFileRequest(*request);
                 new_log.set_allocated_delete_file(new_request);
-                new_log.set_index(log_.size()+1);
+                new_log.set_index(log_.size());
                 new_log.set_term(currentTerm);
                 log_.push_back(new_log);
                 for (auto entry : log_) {
@@ -300,13 +306,13 @@ namespace gfs
                 ConvertToFollower();
             }
 
-            // TODO: handle election timeout
             reset_election_timeout();
 
             // If the log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm, reject the request
 
             if (prev_log_index >= log_.size() || log_[prev_log_index].term() != prev_log_term)
             {
+                LOG(INFO) << "prev : " << prev_log_index << ", size: " << log_.size();
                 reply->set_term(currentTerm);
                 reply->set_success(false);
                 lock_.Unlock();
@@ -401,7 +407,7 @@ namespace gfs
 
                 request.set_term(currentTerm);
                 request.set_candidateid(votedFor);
-                if(log_.size() == 0){
+                if(log_.size() == 1){
                     request.set_lastlogterm(0);
                     request.set_lastlogindex(0);
                 }
@@ -485,8 +491,8 @@ namespace gfs
                 return;
             }
 
-            int ELECTION_TIMEOUT_LOW = 1000;
-            int ELECTION_TIMEOUT_HIGH = 2000;
+            int ELECTION_TIMEOUT_LOW = 5000;
+            int ELECTION_TIMEOUT_HIGH = 10000;
 
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -508,8 +514,8 @@ follower (§5.3)
 decrement nextIndex and retry (§5.3)
 • If there exists an N such that N > commitIndex, a majority
 of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5.3, §5.4).*/
-            int HEARTBEAT_TIMEOUT_LOW = 100;
-            int HEARTBEAT_TIMEOUT_HIGH = 200;
+            int HEARTBEAT_TIMEOUT_LOW = 500;
+            int HEARTBEAT_TIMEOUT_HIGH = 500;
 
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -549,7 +555,7 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
             // initialize nextIndex and matchIndex
             for (std::string server_name : all_servers)
             {
-                nextIndex[server_name] = log_.size();
+                nextIndex[server_name] = log_.size() + 1;
                 matchIndex[server_name] = 0;
             }
 
@@ -568,7 +574,7 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
 
             for (auto server_name : all_servers)
             {
-                LOG(INFO) << "Sending an empty AppendEntries RPC upon election to server" << server_name;
+                LOG(INFO) << "Sending an AppendEntries RPC to server" << server_name;
                 append_entries_results.push_back(
                     std::async(std::launch::async, [&, server_name]()
                                {
@@ -620,9 +626,9 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
             int prev_log_index = nextIndex[server_name] - 1;
 
             // index of log entry immediately preceding new ones
-            if(log_.size() == 0){
-                request.set_prevlogindex(-1);
-                request.set_prevlogterm(-1);
+            if(log_.size() == 1){
+                request.set_prevlogindex(0);
+                request.set_prevlogterm(0);
                 request.set_leadercommit(0);
             }
             else{
@@ -630,6 +636,7 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
             // term of prevLogIndex entry
                 request.set_prevlogterm(log_[prev_log_index].term());
                 request.set_leadercommit(commitIndex);
+                LOG(INFO) << "non empty log" << prev_log_index << " " << log_[prev_log_index].term() << " " << commitIndex;
             }
 
             // log entries to store
