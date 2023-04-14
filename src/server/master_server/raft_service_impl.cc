@@ -1,6 +1,7 @@
 #include "raft_service_impl.h"
 #include "absl/synchronization/mutex.h"
 #include "src/protos/grpc/raft_service.grpc.pb.h"
+#include "src/server/master_server/master_metadata_service_impl.h"
 #include "src/common/system_logger.h"
 #include <csignal>
 #include <random>
@@ -13,6 +14,7 @@
 using google::protobuf::util::Status;
 using google::protobuf::util::StatusOr;
 using grpc::ServerCompletionQueue;
+using gfs::service::MasterMetadataServiceImpl;
 using protos::grpc::AppendEntriesReply;
 using protos::grpc::AppendEntriesRequest;
 using protos::grpc::LogEntry;
@@ -28,6 +30,7 @@ namespace gfs
     namespace service
     {
         RaftServiceImpl *alarmHandlerServer;
+        MasterMetadataServiceImpl* MetadataHandler;
 
         void HandleSignal(int signum)
         {
@@ -195,7 +198,7 @@ namespace gfs
                 }
                 SendAppendEntries();
                 lock_.Unlock();
-                return grpc::Status::OK;
+                return MetadataHandler->DeleteFile(context, request, reply);
             }
             else
             {
@@ -648,6 +651,5 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
             }
             return request;
         }
-
-}
+    }
 }
