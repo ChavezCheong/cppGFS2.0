@@ -169,7 +169,7 @@ namespace gfs
                 }
                 SendAppendEntries();
                 lock_.Unlock();
-                return grpc::Status::OK;
+                return MetadataHandler->OpenFile(context, request, reply);
             }
             else
             {
@@ -676,9 +676,13 @@ namespace gfs
             // term of prevLogIndex entry
                 request.set_prevlogterm(log_[prev_log_index].term());
                 request.set_leadercommit(commitIndex);
+<<<<<<< HEAD
                 LOG(INFO) <<  server_name << " non empty log: " << nextIndex[server_name]  << " " << matchIndex[server_name] << " " <<  log_.size();
-            }
+=======
 
+                LOG(INFO) << "non empty log" << prev_log_index << " " << log_[prev_log_index].term() << " " << commitIndex << " " <<  log_.size();
+>>>>>>> 7310c7e47e2a720fb3a8b90fdf9a6c5c78559296
+            }
             // log entries to store
             for (int j = prev_log_index + 1; j <= maxIndex; j++)
             {
