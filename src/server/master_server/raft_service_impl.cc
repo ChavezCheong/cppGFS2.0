@@ -154,10 +154,11 @@ namespace gfs
                                                protos::grpc::OpenFileReply *reply)
         {
             // TODO: logic
+            lock_.Lock();
             if (currState == State::Leader)
             {
                 if(request->mode() == protos::grpc::OpenFileRequest::CREATE){
-                    lock_.Lock();
+                    
                     LOG(INFO) << "God save our 512 project";
                     LogEntry new_log;
                     OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
@@ -170,16 +171,15 @@ namespace gfs
                         LOG(INFO) << entry.open_file().filename();
                     }
                     SendAppendEntries();
-                    lock_.Unlock();
                 }
-                SendAppendEntries();
-                lock_.Unlock();
                 MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
+                lock_.Unlock();
                 return MetadataHandler.OpenFile(context, request, reply);
             }
             else
             {
                 LOG(INFO) << "NOT LEADER!";
+                lock_.Unlock();
                 return grpc::Status::CANCELLED;
             }
         }
