@@ -157,20 +157,22 @@ namespace gfs
             // TODO: logic
             if (currState == State::Leader)
             {
-                lock_.Lock();
-                LOG(INFO) << "God save our 512 project";
-                LogEntry new_log;
-                OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
-                new_log.set_allocated_open_file(new_request);
-                new_log.set_index(log_.size());
-                new_log.set_term(currentTerm);
-                log_.push_back(new_log);
-                for (auto entry : log_) {
-                    LOG(INFO) << entry.term();
-                    LOG(INFO) << entry.open_file().filename();
+                if(request->mode() == protos::grpc::OpenFileRequest::CREATE){
+                    lock_.Lock();
+                    LOG(INFO) << "God save our 512 project";
+                    LogEntry new_log;
+                    OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
+                    new_log.set_allocated_open_file(new_request);
+                    new_log.set_index(log_.size());
+                    new_log.set_term(currentTerm);
+                    log_.push_back(new_log);
+                    for (auto entry : log_) {
+                        LOG(INFO) << entry.term();
+                        LOG(INFO) << entry.open_file().filename();
+                    }
+                    SendAppendEntries();
+                    lock_.Unlock();
                 }
-                SendAppendEntries();
-                lock_.Unlock();
                 return MetadataHandler->OpenFile(context, request, reply);
             }
             else
