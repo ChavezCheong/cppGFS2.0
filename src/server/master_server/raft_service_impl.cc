@@ -63,7 +63,7 @@ namespace gfs
             for (auto server_name : all_servers)
             {
                 auto server_address = config_manager_->GetServerAddress(server_name, resolve_hostname_);
-                LOG(INFO) << "Establishing new connection to server:"
+                LOG(INFO) << "Establishing new connection to server: "
                           << server_address;
                 masterServerClients[server_name] =
                     std::make_shared<RaftServiceClient>(
@@ -72,13 +72,13 @@ namespace gfs
             }
             // Set up raft service log manager for use
             raft_service_log_manager_ = RaftServiceLogManager::GetInstance();
-            LOG(INFO) << "Starting Raft Service";
+            LOG(INFO) << "Starting Raft Service...";
             currState = State::Follower;
             auto vote = raft_service_log_manager_->GetVotedFor();
             if (vote.ok())
             {
                 votedFor = vote.value();
-                LOG(INFO) << "Get votedFor " << votedFor << " from DB";
+                LOG(INFO) << "Get votedFor " << votedFor << " from DB.";
             }
             else
             {
@@ -90,7 +90,7 @@ namespace gfs
             if (curr_term.ok())
             {
                 currentTerm = curr_term.value();
-                LOG(INFO) << "Get current Term " << currentTerm << " from DB";
+                LOG(INFO) << "Get current Term " << currentTerm << " from DB.";
             }
             else
             {
@@ -157,7 +157,7 @@ namespace gfs
             lock_.Lock();
             if (currState == State::Leader)
             {
-                LOG(INFO) << "Handle OpenFile Request from client";
+                LOG(INFO) << "Handle OpenFile Request from client.";
                 if(request->mode() == protos::grpc::OpenFileRequest::CREATE){
                     lock_.Lock();
                     LogEntry new_log;
@@ -170,7 +170,7 @@ namespace gfs
                         LOG(INFO) << entry.term();
                         LOG(INFO) << entry.open_file().filename();
                     }
-                    LOG(INFO) << "(LEADER) Replicated Create File request to followers";
+                    LOG(INFO) << "(LEADER) Replicated Create File request to followers.";
                     SendAppendEntries();
                 }
                 MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
@@ -179,7 +179,7 @@ namespace gfs
             }
             else
             {
-                LOG(INFO) << "(NOT LEADER) Reject request from client to get metadata";
+                LOG(INFO) << "(NOT LEADER) Reject request from client to get metadata.";
                 lock_.Unlock();
                 return grpc::Status::CANCELLED;
             }
@@ -192,7 +192,7 @@ namespace gfs
             lock_.Lock();
             if (currState == State::Leader)
             {
-                LOG(INFO) << "Handle delete file request from client";
+                LOG(INFO) << "Handle delete file request from client.";
                 LogEntry new_log;
                 DeleteFileRequest* new_request = new protos::grpc::DeleteFileRequest(*request);
                 new_log.set_allocated_delete_file(new_request);
@@ -210,7 +210,7 @@ namespace gfs
             }
             else
             {
-                LOG(INFO) << "(NOT LEADER) Reject request from client to get metadata";
+                LOG(INFO) << "(NOT LEADER) Reject request from client to get metadata.";
                 lock_.Unlock();
                 return grpc::Status::CANCELLED;
             }
@@ -238,10 +238,10 @@ namespace gfs
             else if (request->term() > currentTerm)
             {
                 // TODO: add some way to get current servers address for logging purposes
-                LOG(INFO) << "Server converting to follower ";
+                LOG(INFO) << "Server converting to follower.";
                 currentTerm = request->term();
                 ConvertToFollower();
-                LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
+                LOG(INFO) << "Current term " << currentTerm << " persisted into storage.";
                 raft_service_log_manager_->UpdateCurrentTerm(request->term());
             }
 
@@ -286,11 +286,10 @@ namespace gfs
 
             lock_.Lock();
 
-            LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid() << "Current Log size: " << log_.size();
+            LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid();
+            LOG(INFO) << "Current Log Size: " << log_.size();
+            LOG(INFO) << "Last Log Entry: " << log_[log_.size() - 1].open_file().filename();
 
-            for (auto log : log_) {
-                LOG(INFO) << log.term() << " and  " << log.open_file().filename();
-            }
             // Testing purposes only, once the logs start working we're ging to
             // remove this
 
