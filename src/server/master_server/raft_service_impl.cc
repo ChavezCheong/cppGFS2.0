@@ -78,6 +78,7 @@ namespace gfs
             if (vote.ok())
             {
                 votedFor = vote.value();
+                LOG(INFO) << "Get votedFor " << votedFor << " from DB";
             }
             else
             {
@@ -89,6 +90,7 @@ namespace gfs
             if (curr_term.ok())
             {
                 currentTerm = curr_term.value();
+                LOG(INFO) << "Get current Term " << currentTerm << " from DB";
             }
             else
             {
@@ -154,21 +156,24 @@ namespace gfs
             // TODO: logic
             if (currState == State::Leader)
             {
-                lock_.Lock();
-                LOG(INFO) << "God save our 512 project";
-                LogEntry new_log;
-                OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
-                new_log.set_allocated_open_file(new_request);
-                new_log.set_index(log_.size());
-                new_log.set_term(currentTerm);
-                log_.push_back(new_log);
-                for (auto entry : log_) {
-                    LOG(INFO) << entry.term();
-                    LOG(INFO) << entry.open_file().filename();
+                if(request->mode() == protos::grpc::OpenFileRequest::CREATE){
+                    lock_.Lock();
+                    LOG(INFO) << "God save our 512 project";
+                    LogEntry new_log;
+                    OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
+                    new_log.set_allocated_open_file(new_request);
+                    new_log.set_index(log_.size());
+                    new_log.set_term(currentTerm);
+                    log_.push_back(new_log);
+                    for (auto entry : log_) {
+                        LOG(INFO) << entry.term();
+                        LOG(INFO) << entry.open_file().filename();
+                    }
+                    SendAppendEntries();
+                    lock_.Unlock();
                 }
                 SendAppendEntries();
                 lock_.Unlock();
-                LOG(INFO) << "NO SEGFAULT HERE";
                 MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
                 return MetadataHandler.OpenFile(context, request, reply);
             }
@@ -235,7 +240,8 @@ namespace gfs
                 LOG(INFO) << "Server converting to follower ";
                 currentTerm = request->term();
                 ConvertToFollower();
-                // raft_service_log_manager_->UpdateCurrentTerm(request->term());
+                LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
+                raft_service_log_manager_->UpdateCurrentTerm(request->term());
             }
 
             if (currState == State::Leader)
@@ -255,7 +261,7 @@ namespace gfs
                 // TODO: set votedFor in persistent storage and currentTerm
                 // TODO: add some way to get current server id for logging
                 LOG(INFO) << "Server voted for " << request->candidateid();
-                // raft_service_log_manager_->UpdateVotedFor(request->candidateid());
+                raft_service_log_manager_->UpdateVotedFor(request->candidateid());
             }
             else
             {
@@ -309,6 +315,8 @@ namespace gfs
                 // TODO: add some way to get current servers address for logging purposes
                 LOG(INFO) << "Server converting to follower ";
                 currentTerm = request->term();
+                raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
+                LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
                 ConvertToFollower();
             }
 
@@ -385,6 +393,7 @@ namespace gfs
         {
             currState = State::Follower;
             votedFor = -1;
+            raft_service_log_manager_->UpdateVotedFor(votedFor);
         }
 
         // hold lock while entering
@@ -393,8 +402,11 @@ namespace gfs
             currState = State::Candidate;
             // Once a server is converted to candidate, we increase the current term
             currentTerm++;
+            raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
+            LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
             numVotes = 0;
             votedFor = serverId;
+            raft_service_log_manager_->UpdateVotedFor(votedFor);
 
             LOG(INFO) << "Server convert to candidate";
 
@@ -466,6 +478,8 @@ namespace gfs
                         {
                             LOG(INFO) << "Server converting to follower ";
                             currentTerm = reply.term();
+                            raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
+                            LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
                             ConvertToFollower();
                             return;
                         }
@@ -633,6 +647,8 @@ namespace gfs
                         if (reply.term() > currentTerm){
                             LOG(INFO) << "Server converting to follower ";
                             currentTerm = reply.term();
+                            raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
+                            LOG(INFO) << "Current term " << currentTerm << " persisted into storage";
                             ConvertToFollower();
                             return;
                         }
