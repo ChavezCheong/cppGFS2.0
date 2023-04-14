@@ -317,6 +317,7 @@ namespace gfs
             if (prev_log_index >= log_.size() || log_[prev_log_index].term() != prev_log_term)
             {
                 LOG(INFO) << "prev : " << prev_log_index << ", size: " << log_.size();
+                LOG(INFO) << "our term " << log_[prev_log_index].term() << " their term: " << prev_log_term;
                 reply->set_term(currentTerm);
                 reply->set_success(false);
                 lock_.Unlock();
@@ -329,6 +330,7 @@ namespace gfs
             for (const auto &entry : request->entries())
             {
                 int term = entry.term();
+                LOG(INFO) << "term of log we are appending: " << term;
 
                 // TODO: implement append entries logic here
                 // might need to fix
@@ -512,13 +514,13 @@ namespace gfs
         {
 
             /*If command received from client: append entry to local log, respond after entry applied to state machine (§5.3)
-• If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex
-• If successful: update nextIndex and matchIndex for
-follower (§5.3)
-• If AppendEntries fails because of log inconsistency:
-decrement nextIndex and retry (§5.3)
-• If there exists an N such that N > commitIndex, a majority
-of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5.3, §5.4).*/
+            • If last log index ≥ nextIndex for a follower: send AppendEntries RPC with log entries starting at nextIndex
+            • If successful: update nextIndex and matchIndex for
+            follower (§5.3)
+            • If AppendEntries fails because of log inconsistency:
+            decrement nextIndex and retry (§5.3)
+            • If there exists an N such that N > commitIndex, a majority
+            of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5.3, §5.4).*/
             int HEARTBEAT_TIMEOUT_LOW = 500;
             int HEARTBEAT_TIMEOUT_HIGH = 500;
 
@@ -554,7 +556,6 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
         // We should be going into this function holding the lock. We should leave it holding the lock.
         void RaftServiceImpl::ConvertToLeader()
         {
-
             currState = State::Leader;
 
             // initialize nextIndex and matchIndex
@@ -567,15 +568,20 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
             // Upon election, send empty AppendEntries RPC to all other servers
             SendAppendEntries();
             // TODO: make a function that resets heartbeat timeout
-            reset_election_timeout();
+            reset_heartbeat_timeout();
             LOG(INFO) << "Server converts to leader";
         }
 
+
+        // We should be going into this function holding the lock. We should leave it holding the lock.
         void RaftServiceImpl::SendAppendEntries()
         {
             std::deque<
                 std::future<std::pair<std::string, StatusOr<AppendEntriesReply>>>>
                 append_entries_results;
+
+            int maxIndex = log_.size() - 1;
+            int requestTerm = currentTerm;
 
             for (auto server_name : all_servers)
             {
@@ -584,7 +590,7 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
                     std::async(std::launch::async, [&, server_name]()
                                {
                 // create reply and send
-                AppendEntriesRequest request = createAppendEntriesRequest(server_name);
+                AppendEntriesRequest request = createAppendEntriesRequest(server_name, maxIndex);
                 // AppendEntriesRequest request;
                 auto client = masterServerClients[server_name];
                 auto append_entries_reply = client->SendRequest(request);
@@ -593,6 +599,7 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
                     server_name, append_entries_reply); }));
             }
 
+
             while (!append_entries_results.empty())
             {
                 auto response_future = std::move(append_entries_results.front());
@@ -600,7 +607,14 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
 
                 // TODO: abstract this into configurable variable
                 // wait for future with a timeout time
-                std::future_status status = response_future.wait_for(std::chrono::milliseconds(500));
+                lock_.Unlock();
+                std::future_status status = response_future.wait_for(std::chrono::milliseconds(50));
+                lock_.Lock();
+
+                // re-check entry conditions
+                if (currState != State::Leader || requestTerm != currentTerm){
+                    return;
+                }
 
                 // check if the future has resolved
                 if (status == std::future_status::ready)
@@ -612,17 +626,38 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
                     if (append_entries_reply.ok())
                     {
                         AppendEntriesReply reply = append_entries_reply.value();
-                        // TODO: add logic to resend appendentries if needed
                         //LOG(INFO) << "Received AppendEntriesReply " << reply.SerializeAsString();
-                    }
-                    else
-                    {
+
+                        if (reply.term() > currentTerm){
+                            LOG(INFO) << "Server converting to follower ";
+                            currentTerm = reply.term();
+                            ConvertToFollower();
+                            return;
+                        }
+                        else if (reply.success()){
+                            nextIndex[server_name] = maxIndex + 1;
+                            matchIndex[server_name] = maxIndex;
+                            LOG(INFO) << "successful from " << server_name << " " << nextIndex[server_name] << " " << matchIndex[server_name];
+                        }
+                        else{
+                            LOG(INFO) << "resending to " << server_name;
+                            nextIndex[server_name] -= 1;
+                            append_entries_results.push_back(std::async(std::launch::async, [&, server_name]()
+                               {// create reply and send
+                                AppendEntriesRequest request = createAppendEntriesRequest(server_name, maxIndex);
+                                // AppendEntriesRequest request;
+                                auto client = masterServerClients[server_name];
+                                auto append_entries_reply = client->SendRequest(request);
+                                return std::pair<std::string, StatusOr<AppendEntriesReply>>(
+                                    server_name, append_entries_reply); }));
+                        } 
                     }
                 }
             }
+
         }
 
-        protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(std::string server_name)
+        protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(std::string server_name, int maxIndex)
         {
             AppendEntriesRequest request;
             request.set_term(currentTerm);
@@ -641,13 +676,13 @@ of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5
             // term of prevLogIndex entry
                 request.set_prevlogterm(log_[prev_log_index].term());
                 request.set_leadercommit(commitIndex);
-                LOG(INFO) << "non empty log" << prev_log_index << " " << log_[prev_log_index].term() << " " << commitIndex << " " <<  log_.size();
+                LOG(INFO) <<  server_name << " non empty log: " << nextIndex[server_name]  << " " << matchIndex[server_name] << " " <<  log_.size();
             }
 
             // log entries to store
-            for (int j = prev_log_index + 1; j < log_.size(); j++)
+            for (int j = prev_log_index + 1; j <= maxIndex; j++)
             {
-                LogEntry *entry = request.add_entries();
+                request.add_entries()->CopyFrom(log_[j]);
             }
             return request;
         }

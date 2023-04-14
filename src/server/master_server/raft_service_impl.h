@@ -59,7 +59,7 @@ private:
     void reset_election_timeout();
     void reset_heartbeat_timeout();
 
-    protos::grpc::AppendEntriesRequest createAppendEntriesRequest(std::string server_name);
+    protos::grpc::AppendEntriesRequest createAppendEntriesRequest(std::string server_name, int maxIndex);
 
     common::ConfigManager* config_manager_;
 
