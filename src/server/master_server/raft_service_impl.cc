@@ -11,19 +11,19 @@
 #include <deque>
 #include <thread>
 
+using gfs::service::MasterMetadataServiceImpl;
+using google::protobuf::Empty;
 using google::protobuf::util::Status;
 using google::protobuf::util::StatusOr;
 using grpc::ServerCompletionQueue;
-using gfs::service::MasterMetadataServiceImpl;
 using protos::grpc::AppendEntriesReply;
 using protos::grpc::AppendEntriesRequest;
+using protos::grpc::DeleteFileRequest;
 using protos::grpc::LogEntry;
 using protos::grpc::OpenFileReply;
 using protos::grpc::OpenFileRequest;
 using protos::grpc::RequestVoteReply;
 using protos::grpc::RequestVoteRequest;
-using protos::grpc::DeleteFileRequest;
-using google::protobuf::Empty;
 
 namespace gfs
 {
@@ -47,6 +47,19 @@ namespace gfs
             alarmHandlerServer = this;
             this->resolve_hostname_ = resolve_hostname;
 
+            if (master_name == "master_server_01")
+            {
+                serverId = 1;
+            }
+            else if (master_name == "master_server_02")
+            {
+                serverId = 2;
+            }
+            else if (master_name == "master_server_03")
+            {
+                serverId = 3;
+            }
+
             // set up the lock
             absl::MutexLock l(&lock_);
 
@@ -64,7 +77,7 @@ namespace gfs
             {
                 auto server_address = config_manager_->GetServerAddress(server_name, resolve_hostname_);
                 LOG(INFO) << "Establishing new connection to server: "
-                           << server_address;
+                          << server_address;
                 masterServerClients[server_name] =
                     std::make_shared<RaftServiceClient>(
                         grpc::CreateChannel(server_address,
@@ -105,6 +118,7 @@ namespace gfs
             }
             else
             {
+                LOG(INFO) << "EMPTY LOG";
                 // initialize with an empty entry
                 LogEntry empty_entry;
                 empty_entry.set_term(0);
@@ -114,6 +128,7 @@ namespace gfs
             }
 
             commitIndex = 0;
+            lastApplied = 0;
 
             reset_election_timeout();
         }
@@ -158,9 +173,10 @@ namespace gfs
             if (currState == State::Leader)
             {
                 LOG(INFO) << "Handle OpenFile Request from client.";
-                if(request->mode() == protos::grpc::OpenFileRequest::CREATE){
+                if (request->mode() == protos::grpc::OpenFileRequest::CREATE)
+                {
                     LogEntry new_log;
-                    OpenFileRequest* new_request = new protos::grpc::OpenFileRequest(*request);
+                    OpenFileRequest *new_request = new protos::grpc::OpenFileRequest(*request);
                     new_log.set_allocated_open_file(new_request);
                     new_log.set_index(log_.size());
                     new_log.set_term(currentTerm);
@@ -185,15 +201,15 @@ namespace gfs
         }
 
         grpc::Status RaftServiceImpl::DeleteFile(grpc::ServerContext *context,
-                                               const protos::grpc::DeleteFileRequest *request,
-                                               google::protobuf::Empty *reply)
+                                                 const protos::grpc::DeleteFileRequest *request,
+                                                 google::protobuf::Empty *reply)
         {
             lock_.Lock();
             if (currState == State::Leader)
             {
                 LOG(INFO) << "Handle delete file request from client.";
                 LogEntry new_log;
-                DeleteFileRequest* new_request = new protos::grpc::DeleteFileRequest(*request);
+                DeleteFileRequest *new_request = new protos::grpc::DeleteFileRequest(*request);
                 new_log.set_allocated_delete_file(new_request);
                 new_log.set_index(log_.size());
                 new_log.set_term(currentTerm);
@@ -265,7 +281,6 @@ namespace gfs
             }
             else
             {
-                LOG(INFO) << "no vote";
                 lock_.Unlock();
                 return grpc::Status::OK;
             }
@@ -286,12 +301,12 @@ namespace gfs
 
             lock_.Lock();
 
-            LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid();
-            LOG(INFO) << "Current Log Size: " << log_.size();
-            if(log_.size() > 1)
-            {
-            LOG(INFO) << "Last Log Entry: " << log_[log_.size() - 1].open_file().filename();
-            }
+            // LOG(INFO) << "Handle Append Entries RPC from: " << request->leaderid();
+            // LOG(INFO) << "Current Log Size: " << log_.size();
+            // if (log_.size() > 1)
+            // {
+            //     LOG(INFO) << "Last Log Entry: " << log_[log_.size() - 1].open_file().filename();
+            // }
 
             // Testing purposes only, once the logs start working we're ging to
             // remove this
@@ -357,7 +372,6 @@ namespace gfs
                     raft_service_log_manager_->DeleteLogEntries(log_.size());
                 }
 
-
                 // If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
                 if (request->leadercommit() > commitIndex)
                 {
@@ -382,13 +396,18 @@ namespace gfs
             decrement nextIndex and retry
             */
             // Commit every entry up till leaderindex
-            // Check if we need to 
-            if (request->leadercommit() > lastApplied) {
-                for (uint32_t commit_index = lastApplied; commit_index <= request->leadercommit(); ++commit_index) {
-                    OpenFileRequest* new_request = new OpenFileRequest(log_[commit_index - 1].open_file());
-                    OpenFileReply* new_reply;
+            // Check if we need to
+            // LOG(INFO) << "Leader commit is " << request->leadercommit() << " and lastApplied is " << lastApplied;
+            if (request->leadercommit() > lastApplied)
+            {
+                for (uint32_t commit_index = lastApplied; commit_index < request->leadercommit(); ++commit_index)
+                {
+                    LOG(INFO) << "APPLYING ENTRY AT COMMIT INDEX " << commit_index;
+                    OpenFileRequest *new_request = new OpenFileRequest(log_[commit_index].open_file());
+                    OpenFileReply *new_reply;
                     MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
                     MetadataHandler.OpenFile(context, new_request, new_reply, false);
+                    lastApplied++;
                 }
             }
 
@@ -480,9 +499,9 @@ namespace gfs
                         auto reply = request_vote_reply.value();
                         // if outdated term, convert to follower
 
-                        LOG(INFO) << "Grant vote? " << reply.votegranted();
-                        LOG(INFO) << "Term of reply " << reply.term();
-                        LOG(INFO) << "Current term " << currentTerm;
+                        // LOG(INFO) << "Grant vote? " << reply.votegranted();
+                        // LOG(INFO) << "Term of reply " << reply.term();
+                        // LOG(INFO) << "Current term " << currentTerm;
                         if (reply.term() > currentTerm)
                         {
                             LOG(INFO) << "Server converting to follower ";
@@ -523,8 +542,8 @@ namespace gfs
                 return;
             }
 
-            int ELECTION_TIMEOUT_LOW = 5000;
-            int ELECTION_TIMEOUT_HIGH = 10000;
+            int ELECTION_TIMEOUT_LOW = 1000;
+            int ELECTION_TIMEOUT_HIGH = 2000;
 
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -556,26 +575,37 @@ namespace gfs
             float heartbeat_timeout = dis(gen);
 
             SetAlarm(heartbeat_timeout);
-            uint32_t index_threshold;
-            uint32_t matchIndArr[3];
-            int ind = 0;
-            for(auto& it : matchIndex){
-                matchIndArr[ind] = it.second;
-                ind++;
+            for (int N = commitIndex + 1; N < log_.size(); ++N) {
+                if (log_[N].term() == currentTerm) {
+                    int count = 1;
+                    for (auto pair : matchIndex) {
+                        if (pair.second >= N) {
+                            count++;
+                        }
+                    }
+                    if (count >= 2) {
+                        commitIndex = N;
+                    }
+                }
             }
-            std::sort(matchIndArr, matchIndArr+3);
-            index_threshold = matchIndArr[1];
+            // uint32_t index_threshold;
+            
+            // std::sort(matchIndArr, matchIndArr + 3);
+            // index_threshold = matchIndArr[1];
 
-            for(int N = commitIndex; N <= index_threshold; N++){
-                // just in case this loops break
-                if(N >= log_.size()){
-                    break;
-                }
-                if(log_[N].term() == currentTerm){
-                    commitIndex = N;
-                    break;
-                }
-            }
+            // for (int N = commitIndex; N <= index_threshold; N++)
+            // {
+            //     // just in case this loops break
+            //     if (N >= log_.size())
+            //     {
+            //         break;
+            //     }
+            //     if (log_[N].term() == currentTerm)
+            //     {
+            //         commitIndex = N;
+            //         break;
+            //     }
+            // }
         }
 
         // We should be going into this function holding the lock. We should leave it holding the lock.
@@ -596,7 +626,6 @@ namespace gfs
             reset_heartbeat_timeout();
             LOG(INFO) << "Server converts to leader";
         }
-
 
         // We should be going into this function holding the lock. We should leave it holding the lock.
         void RaftServiceImpl::SendAppendEntries()
@@ -624,7 +653,6 @@ namespace gfs
                     server_name, append_entries_reply); }));
             }
 
-
             while (!append_entries_results.empty())
             {
                 auto response_future = std::move(append_entries_results.front());
@@ -633,11 +661,12 @@ namespace gfs
                 // TODO: abstract this into configurable variable
                 // wait for future with a timeout time
                 lock_.Unlock();
-                std::future_status status = response_future.wait_for(std::chrono::milliseconds(50));
+                std::future_status status = response_future.wait_for(std::chrono::milliseconds(100));
                 lock_.Lock();
 
                 // re-check entry conditions
-                if (currState != State::Leader || requestTerm != currentTerm){
+                if (currState != State::Leader || requestTerm != currentTerm)
+                {
                     return;
                 }
 
@@ -651,9 +680,10 @@ namespace gfs
                     if (append_entries_reply.ok())
                     {
                         AppendEntriesReply reply = append_entries_reply.value();
-                        //LOG(INFO) << "Received AppendEntriesReply " << reply.SerializeAsString();
+                        // LOG(INFO) << "Received AppendEntriesReply " << reply.SerializeAsString();
 
-                        if (reply.term() > currentTerm){
+                        if (reply.term() > currentTerm)
+                        {
                             LOG(INFO) << "Server converting to follower ";
                             currentTerm = reply.term();
                             raft_service_log_manager_->UpdateCurrentTerm(currentTerm);
@@ -661,46 +691,52 @@ namespace gfs
                             ConvertToFollower();
                             return;
                         }
-                        else if (reply.success()){
+                        else if (reply.success())
+                        {
                             nextIndex[server_name] = maxIndex + 1;
                             matchIndex[server_name] = maxIndex;
                             // LOG(INFO) << "successful from " << server_name << " " << nextIndex[server_name] << " " << matchIndex[server_name];
                         }
-                        else{
+                        else
+                        {
                             nextIndex[server_name] -= 1;
-                            append_entries_results.push_back(std::async(std::launch::async, [&, server_name]()
-                               {// create reply and send
+                            append_entries_results.push_back(std::async(std::launch::async, [&, server_name]() { // create reply and send
                                 AppendEntriesRequest request = createAppendEntriesRequest(server_name, maxIndex);
                                 // AppendEntriesRequest request;
                                 auto client = masterServerClients[server_name];
                                 auto append_entries_reply = client->SendRequest(request);
                                 return std::pair<std::string, StatusOr<AppendEntriesReply>>(
-                                    server_name, append_entries_reply); }));
-                        } 
+                                    server_name, append_entries_reply);
+                            }));
+                        }
                     }
                 }
             }
-
         }
 
         protos::grpc::AppendEntriesRequest RaftServiceImpl::createAppendEntriesRequest(std::string server_name, int maxIndex)
         {
             AppendEntriesRequest request;
             request.set_term(currentTerm);
-            request.set_leaderid(currLeader);
+            request.set_leaderid(serverId);
 
             int prev_log_index = nextIndex[server_name] - 1;
 
             // index of log entry immediately preceding new ones
-            if(log_.size() == 1){
+            if (log_.size() == 1)
+            {
                 request.set_prevlogindex(0);
                 request.set_prevlogterm(0);
                 request.set_leadercommit(0);
             }
-            else{
+            else
+            {
                 request.set_prevlogindex(prev_log_index);
-            // term of prevLogIndex entry
+                // term of prevLogIndex entry
                 request.set_prevlogterm(log_[prev_log_index].term());
+                for (auto pair : matchIndex) {
+                    // LOG(INFO) << "MATCH INDEX FOR SERVER " << pair.first << " is " << pair.second;
+                }
                 request.set_leadercommit(commitIndex);
             }
             // log entries to store
