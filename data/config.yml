@@ -7,6 +7,8 @@ servers:
     - master_server_01
     - master_server_02
     - master_server_03
+    - master_server_04
+    - master_server_05
   chunk_servers:
     - chunk_server_01
     - chunk_server_02
@@ -23,15 +25,21 @@ network:
   master_server_03:
     hostname: master_server_03
     port: 50053
+  master_server_04:
+    hostname: master_server_04
+    port: 50054
+  master_server_05:
+    hostname: master_server_05
+    port: 50055
   chunk_server_01:
     hostname: chunk_server_01
-    port: 50054
+    port: 50056
   chunk_server_02:
     hostname: chunk_server_02
-    port: 50055
+    port: 50057
   chunk_server_03:
     hostname: chunk_server_03
-    port: 50056
+    port: 50058
   dns_lookup_table: # Hostname -> IP address mapping
     # These values should only be used, if no DNS server is available
     # for translating hostname to IP address. If using Docker, docker
@@ -40,6 +48,8 @@ network:
     master_server_01: 0.0.0.0
     master_server_02: 0.0.0.0
     master_server_03: 0.0.0.0
+    master_server_04: 0.0.0.0
+    master_server_05: 0.0.0.0
     chunk_server_01: 0.0.0.0
     chunk_server_02: 0.0.0.0
     chunk_server_03: 0.0.0.0
@@ -56,6 +66,8 @@ disk:
     master_server_01: data/gfs_db_master_server_01
     master_server_02: data/gfs_db_master_server_02
     master_server_03: data/gfs_db_master_server_03
+    master_server_04: data/gfs_db_master_server_04
+    master_server_05: data/gfs_db_master_server_05
 timeout:
   # The valid suffixes are "ns", "us" "ms", "s", "m", and "h".
   grpc: 10s

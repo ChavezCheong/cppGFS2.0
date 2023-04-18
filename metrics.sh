@@ -1,19 +1,31 @@
 #!/bin/bash
 
-successes=0
-failures=0
+create_successes=0
+create_failures=0
+write_successe=0
+write_failues=0
 
 for i in {1..500}; do
   filename="/test_$i"
-  output=$(time -p bazel-bin/gfs_client_main --mode=create --filename="$filename" 2>&1)
-  if [[ "$output" == *"File created"* ]]; then
+  create_output=$(time -p bazel-bin/gfs_client_main --mode=create --filename="$filename" 2>&1)
+  if [[ "$create_output" == *"File created"* ]]; then
     echo "Success: $filename"
-    ((successes++))
+    ((create_successes++))
   else
     echo "Failure: $filename"
-    ((failures++))
+    ((create_failures++))
+  fi
+  write_output=$(time -p bazel-bin/gfs_client_main --mode=write --filename="$filename" --offset=0 --data='Hello World!' 2>&1)
+  if [[ "$write_output" == *"Data written successfully"* ]]; then
+    echo "Success: $filename"
+    ((write_successes++))
+  else
+    echo "Failure: $filename"
+    ((write_failures++))
   fi
 done
 
-echo "Successes: $successes"
-echo "Failures: $failures" 
+echo "Create Successes: $create_successes"
+echo "Create Failures: $create_failures" 
+echo "Write Successes: $write_successes"
+echo "Write Failures: $write_failures" 
