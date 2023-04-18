@@ -197,27 +197,44 @@ namespace gfs
                     LOG(INFO) << "(LEADER) Replicated Create File request to followers.";
                     SendAppendEntries();
                     lock_.Unlock();
-                    return MetadataHandler.OpenFile(context, request, reply, true);
+                    protos::ChunkServerLocation *new_location;
+                    return MetadataHandler.OpenFile(context, request, reply, true, new_location, 0);
                 }
-                else if (request->mode() == protos::grpc::OpenFileRequest::WRITE) {
+                else if (request->mode() == protos::grpc::OpenFileRequest::WRITE)
+                {
                     LogEntry new_log;
                     OpenFileRequest *new_request = new protos::grpc::OpenFileRequest(*request);
                     new_log.set_allocated_open_file(new_request);
                     new_log.set_index(log_.size());
                     new_log.set_term(currentTerm);
-                    // Get lease
+                    // Get lease and check if a lease currently is still valid. If it is, we don't need to grant it so no need to log.
                     auto lease_pair = MetadataHandler.GetPreLeaseMetadata(request);
-                    protos::ChunkServerLocation *new_location = new protos::ChunkServerLocation(lease_pair.value().first);
-                    new_log.set_allocated_chunk_server_location(new_location);
-                    new_log.set_expirationtime(lease_pair.value().second);
-                    log_.push_back(new_log);
-                    LOG(INFO) << "(LEADER) Replicated Create Lease request to followers.";
-                    SendAppendEntries();
-                    lock_.Unlock();
-                    return MetadataHandler.OpenFile(context, request, reply, true);
+                    if (lease_pair.ok())
+                    {
+                        protos::ChunkServerLocation *new_location = new protos::ChunkServerLocation(lease_pair.value().first);
+                        new_log.set_allocated_chunk_server_location(new_location);
+                        new_log.set_expirationtime(lease_pair.value().second);
+                        log_.push_back(new_log);
+                        LOG(INFO) << "(LEADER) Replicated Create Lease request to followers.";
+                        SendAppendEntries();
+                        lock_.Unlock();
+                        return MetadataHandler.OpenFile(context, request, reply, true, new_location, lease_pair.value().second);
+                    }
+                    else
+                    {
+                        LOG(INFO) << "(LEADER) Metadata already exists, no need to append entries to log";
+                        lock_.Unlock();
+                        protos::ChunkServerLocation *new_location;
+                        return MetadataHandler.OpenFile(context, request, reply, true, new_location, 0);
+                    }
                 }
-                
-                
+                else {
+                    // read request, just handle
+                    LOG(INFO) << "(LEADER) Handling Read Request";
+                        lock_.Unlock();
+                        protos::ChunkServerLocation *new_location;
+                        return MetadataHandler.OpenFile(context, request, reply, true, new_location, 0);
+                }
             }
             else
             {
@@ -427,15 +444,20 @@ namespace gfs
             if (request->leadercommit() > lastApplied)
             {
                 for (uint32_t commit_index = lastApplied; commit_index < request->leadercommit(); ++commit_index)
-                {   
-                    OpenFileRequest *new_request = new OpenFileRequest(log_[commit_index+1].open_file());
+                {
+                    OpenFileRequest *new_request = new OpenFileRequest(log_[commit_index + 1].open_file());
                     OpenFileReply *new_reply;
-                    if (new_request->mode() == protos::grpc::OpenFileRequest::WRITE) {
-                        // apply the lease
-                    }
-                    else {
                     MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
-                    MetadataHandler.OpenFile(context, new_request, new_reply, false);
+                    if (new_request->mode() == protos::grpc::OpenFileRequest::WRITE)
+                    {
+                        // apply the lease
+                        protos::ChunkServerLocation *new_location = new protos::ChunkServerLocation(log_[commit_index + 1].chunk_server_location());
+                        MetadataHandler.OpenFile(context, new_request, new_reply, false, new_location, log_[commit_index + 1].expirationtime());
+                    }
+                    else
+                    {
+                        protos::ChunkServerLocation *new_location;
+                        MetadataHandler.OpenFile(context, new_request, new_reply, false, new_location, 0);
                     }
                     lastApplied++;
                 }
@@ -605,21 +627,26 @@ namespace gfs
             float heartbeat_timeout = dis(gen);
 
             SetAlarm(heartbeat_timeout);
-            for (int N = commitIndex + 1; N < log_.size(); ++N) {
-                if (log_[N].term() == currentTerm) {
+            for (int N = commitIndex + 1; N < log_.size(); ++N)
+            {
+                if (log_[N].term() == currentTerm)
+                {
                     int count = 1;
-                    for (auto pair : matchIndex) {
-                        if (pair.second >= N) {
+                    for (auto pair : matchIndex)
+                    {
+                        if (pair.second >= N)
+                        {
                             count++;
                         }
                     }
-                    if (count >= 2) {
+                    if (count >= 2)
+                    {
                         commitIndex = N;
                     }
                 }
             }
             // uint32_t index_threshold;
-            
+
             // std::sort(matchIndArr, matchIndArr + 3);
             // index_threshold = matchIndArr[1];
 
@@ -764,7 +791,8 @@ namespace gfs
                 request.set_prevlogindex(prev_log_index);
                 // term of prevLogIndex entry
                 request.set_prevlogterm(log_[prev_log_index].term());
-                for (auto pair : matchIndex) {
+                for (auto pair : matchIndex)
+                {
                     // LOG(INFO) << "MATCH INDEX FOR SERVER " << pair.first << " is " << pair.second;
                 }
                 request.set_leadercommit(commitIndex);

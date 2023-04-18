@@ -54,7 +54,10 @@ namespace gfs
             // function to dispatch the task for writing to a file chunk
             grpc::Status HandleFileChunkWrite(
                 const protos::grpc::OpenFileRequest *request,
-                protos::grpc::OpenFileReply *reply);
+                protos::grpc::OpenFileReply *reply,
+                bool is_leader,
+                protos::ChunkServerLocation* lease_location,
+                uint64_t expiration_time);
 
             // Handle chunk creation, this is an internal helper function that gets
             // called when a file is created and when a write request is processed
@@ -67,7 +70,9 @@ namespace gfs
             grpc::Status OpenFile(grpc::ServerContext *context,
                                   const protos::grpc::OpenFileRequest *request,
                                   protos::grpc::OpenFileReply *reply,
-                                  bool is_leader);
+                                  bool is_leader,
+                                  protos::ChunkServerLocation* chunk_server_location,
+                                  uint64_t expiration_time);
 
             // Handle a DeleteFileRequest request sent by the client.
             grpc::Status DeleteFile(grpc::ServerContext *context,

@@ -270,6 +270,34 @@ namespace gfs
       google::protobuf::util::StatusOr<std::string> chunk_handle_or(
           metadata_manager()->GetChunkHandle(filename, chunk_index));
 
+      // Check if we still have the lease. Log Entry does not need to be modified if there is no lease.
+      bool lease_granted = false;
+      protos::ChunkServerLocation primary_location;
+      LOG(INFO) << "Checking if we have existing lease for " << chunk_handle_or.value();
+      auto result_or = metadata_manager()->GetPrimaryLeaseMetadata(chunk_handle_or.value());
+      if (result_or.second)
+      { // has value
+        auto lease_location_expiration_time = result_or.first;
+        protos::ChunkServerLocation prev_lease_holder_location =
+            lease_location_expiration_time.first;
+        // make sure the old lease helder is still valid
+        // lease not expired
+        if (absl::FromUnixSeconds(lease_location_expiration_time.second) >
+            absl::Now())
+        {
+          LOG(INFO) << "Reuse existing lease for " << chunk_handle_or.value() << ", held by "
+                    << prev_lease_holder_location.server_hostname();
+          lease_granted = true;
+          primary_location = prev_lease_holder_location;
+        }
+        // Return status not ok if there is an existing lease.
+        if (!lease_granted)
+        {
+          grpc::Status(grpc::StatusCode::INTERNAL,
+                       "lease not yet granted");
+        }
+      }
+
       protos::ChunkServerLocation location;
       for (auto chunk_server_location : chunk_server_manager().GetChunkLocations(chunk_handle_or.value()))
       {
@@ -287,7 +315,10 @@ namespace gfs
 
     grpc::Status MasterMetadataServiceImpl::HandleFileChunkWrite(
         const protos::grpc::OpenFileRequest *request,
-        protos::grpc::OpenFileReply *reply)
+        protos::grpc::OpenFileReply *reply,
+        bool is_leader,
+        protos::ChunkServerLocation *lease_location,
+        uint64_t expiration_time)
     {
       // Step 1. Access the chunk handle, if the chunk handle does not exist
       // then create one for this write request. Note that we currently only
@@ -327,7 +358,7 @@ namespace gfs
 
         LOG(INFO) << "Creating a file chunk for " << filename << " at chunk index "
                   << chunk_index;
-        grpc::Status chunk_creation_status(HandleFileChunkCreation(request, reply, true));
+        grpc::Status chunk_creation_status(HandleFileChunkCreation(request, reply, is_leader));
         if (!chunk_creation_status.ok())
         {
           return chunk_creation_status;
@@ -381,22 +412,30 @@ namespace gfs
         advance_version_request.set_new_chunk_version(new_chunk_version);
         grpc::ClientContext client_context;
         common::SetClientContextDeadline(client_context, config_manager_);
-
-        // Issue AdvanceFileChunkVersion and check status
-        google::protobuf::util::StatusOr<AdvanceFileChunkVersionReply>
-            advance_version_reply_or(chunk_server_service_client->SendRequest(
-                advance_version_request, client_context));
-        if (!advance_version_reply_or.ok())
+        if (is_leader)
         {
-          LOG(ERROR) << "Failed to advance chunk version for chunk " << chunk_handle
-                     << " on chunk server " << server_address << "due to "
-                     << advance_version_reply_or.status();
-          LOG(INFO) << "Skipping chunk server "
-                    << chunk_server_location.server_hostname()
-                    << " for write operation " << chunk_handle;
-          // TODO(Xi): handle if all version advancement fails
-          // TODO(tugan): the client shouldn't write to this chunk server anymore
-          // TODO(tugan): should issue request to bring the replica up to date
+          // Issue AdvanceFileChunkVersion and check status
+          google::protobuf::util::StatusOr<AdvanceFileChunkVersionReply>
+              advance_version_reply_or(chunk_server_service_client->SendRequest(
+                  advance_version_request, client_context));
+          if (!advance_version_reply_or.ok())
+          {
+            LOG(ERROR) << "Failed to advance chunk version for chunk " << chunk_handle
+                       << " on chunk server " << server_address << "due to "
+                       << advance_version_reply_or.status();
+            LOG(INFO) << "Skipping chunk server "
+                      << chunk_server_location.server_hostname()
+                      << " for write operation " << chunk_handle;
+            // TODO(Xi): handle if all version advancement fails
+            // TODO(tugan): the client shouldn't write to this chunk server anymore
+            // TODO(tugan): should issue request to bring the replica up to date
+          }
+          else
+          {
+            LOG(INFO) << "Advanced chunk version for chunk " << chunk_handle
+                      << " on chunk server " << server_address;
+            advanced_locations.push_back(chunk_server_location);
+          }
         }
         else
         {
@@ -487,57 +526,62 @@ namespace gfs
 
       if (!lease_granted)
       {
-        for (auto &location : advanced_locations)
+        std::string primary_server_hostname = lease_location->server_hostname();
+        if (resolve_hostname_)
         {
-          std::string primary_server_hostname = location.server_hostname();
-          if (resolve_hostname_)
-          {
-            primary_server_hostname =
-                config_manager_->ResolveHostname(primary_server_hostname);
-          }
-          const std::string &primary_server_address(
-              primary_server_hostname + ":" +
-              std::to_string(location.server_port()));
-          auto lease_service_client(
-              GetOrCreateChunkServerProtocolClient(primary_server_address));
+          primary_server_hostname =
+              config_manager_->ResolveHostname(primary_server_hostname);
+        }
+        const std::string &primary_server_address(
+            primary_server_hostname + ":" +
+            std::to_string(lease_location->server_port()));
+        auto lease_service_client(
+            GetOrCreateChunkServerProtocolClient(primary_server_address));
 
-          LOG(INFO)
-              << "MasterMetadataService trying to grant write lease to server "
-              << primary_server_address;
-          // Prepare GrantLeaseRequest to send to chunk server
-          GrantLeaseRequest grant_lease_request;
-          grant_lease_request.set_chunk_handle(chunk_handle);
-          grant_lease_request.set_chunk_version(chunk_version + 1);
-          uint64_t expiration_unix_sec = absl::ToUnixSeconds(
-              absl::Now() + config_manager_->GetWriteLeaseTimeout());
-          grant_lease_request.mutable_lease_expiration_time()->set_seconds(
-              expiration_unix_sec);
-          grpc::ClientContext client_context;
-          common::SetClientContextDeadline(client_context, config_manager_);
+        LOG(INFO)
+            << "MasterMetadataService trying to grant write lease to server "
+            << primary_server_address;
+        // Prepare GrantLeaseRequest to send to chunk server
+        GrantLeaseRequest grant_lease_request;
+        grant_lease_request.set_chunk_handle(chunk_handle);
+        grant_lease_request.set_chunk_version(chunk_version + 1);
+        uint64_t expiration_unix_sec = expiration_time;
+        grant_lease_request.mutable_lease_expiration_time()->set_seconds(
+            expiration_unix_sec);
+        grpc::ClientContext client_context;
+        common::SetClientContextDeadline(client_context, config_manager_);
 
-          // Issue GrantLeaseRequest request and check status
+        // Issue GrantLeaseRequest request and check status
+        if (is_leader)
+        {
           google::protobuf::util::StatusOr<GrantLeaseReply> grant_lease_reply_or(
               lease_service_client->SendRequest(grant_lease_request,
                                                 client_context));
-
           // Handle error, and logging
           if (!grant_lease_reply_or.ok())
           {
             LOG(ERROR) << "Grant lease request for chunk " << chunk_handle << " at "
                        << primary_server_address << " failed due to "
                        << grant_lease_reply_or.status();
-            continue;
           }
           else
           {
             LOG(INFO) << "Grant lease request for chunk " << chunk_handle << " at "
                       << primary_server_address << " succeeded";
             lease_granted = true;
-            primary_location = location;
-            metadata_manager()->SetPrimaryLeaseMetadata(chunk_handle, location,
+            primary_location = *lease_location;
+            metadata_manager()->SetPrimaryLeaseMetadata(chunk_handle, primary_location,
                                                         expiration_unix_sec);
-            break;
           }
+        }
+        else
+        {
+          LOG(INFO) << "Grant lease request for chunk " << chunk_handle << " at "
+                    << primary_server_address << " succeeded";
+          lease_granted = true;
+          primary_location = *lease_location;
+          metadata_manager()->SetPrimaryLeaseMetadata(chunk_handle, primary_location,
+                                                      expiration_unix_sec);
         }
       }
 
@@ -547,13 +591,15 @@ namespace gfs
                             "No chunk server is available to accept the write "
                             "lease and act as the primary. Abort");
       }
-
-      reply->mutable_metadata()->set_chunk_handle(chunk_handle);
-      reply->mutable_metadata()->set_version(new_chunk_version);
-      *reply->mutable_metadata()->mutable_primary_location() = primary_location;
-      for (auto &location : advanced_locations)
+      if (is_leader)
       {
-        *reply->mutable_metadata()->add_locations() = location;
+        reply->mutable_metadata()->set_chunk_handle(chunk_handle);
+        reply->mutable_metadata()->set_version(new_chunk_version);
+        *reply->mutable_metadata()->mutable_primary_location() = primary_location;
+        for (auto &location : advanced_locations)
+        {
+          *reply->mutable_metadata()->add_locations() = location;
+        }
       }
 
       return grpc::Status::OK;
@@ -582,7 +628,9 @@ namespace gfs
     grpc::Status MasterMetadataServiceImpl::OpenFile(ServerContext *context,
                                                      const OpenFileRequest *request,
                                                      OpenFileReply *reply,
-                                                     bool is_leader)
+                                                     bool is_leader,
+                                                     protos::ChunkServerLocation *chunk_server_location,
+                                                     uint64_t expiration_time)
     {
       // Dispatch different mode to different handle function
       switch (request->mode())
@@ -592,7 +640,7 @@ namespace gfs
       case OpenFileRequest::READ:
         return HandleFileChunkRead(request, reply);
       case OpenFileRequest::WRITE:
-        return HandleFileChunkWrite(request, reply);
+        return HandleFileChunkWrite(request, reply, is_leader, chunk_server_location, expiration_time);
       default:
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "invalid mode");
       }
