@@ -1,0 +1,4 @@
+time (./metrics.sh &> output.txt)
+( ./metrics.sh &> output.txt; )  8.78s user 4.48s system 66% cpu 19.989 total
+
+9.53s user 4.86s system 67% cpu 21.185 total

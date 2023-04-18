@@ -59,6 +59,14 @@ namespace gfs
             {
                 serverId = 3;
             }
+            else if (master_name == "master_server_04")
+            {
+                serverId = 4;
+            }
+            else if (master_name == "master_server_05")
+            {
+                serverId = 5;
+            }
 
             // set up the lock
             absl::MutexLock l(&lock_);
