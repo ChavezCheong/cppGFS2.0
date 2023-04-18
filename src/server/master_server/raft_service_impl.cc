@@ -397,13 +397,11 @@ namespace gfs
             */
             // Commit every entry up till leaderindex
             // Check if we need to
-            // LOG(INFO) << "Leader commit is " << request->leadercommit() << " and lastApplied is " << lastApplied;
             if (request->leadercommit() > lastApplied)
             {
                 for (uint32_t commit_index = lastApplied; commit_index < request->leadercommit(); ++commit_index)
                 {
-                    LOG(INFO) << "APPLYING ENTRY AT COMMIT INDEX " << commit_index;
-                    OpenFileRequest *new_request = new OpenFileRequest(log_[commit_index].open_file());
+                    OpenFileRequest *new_request = new OpenFileRequest(log_[commit_index+1].open_file());
                     OpenFileReply *new_reply;
                     MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
                     MetadataHandler.OpenFile(context, new_request, new_reply, false);

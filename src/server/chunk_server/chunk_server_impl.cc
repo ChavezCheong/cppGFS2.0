@@ -162,17 +162,17 @@ bool ChunkServerImpl::ReportToMaster() {
       // Check the reply for stale chunks, if any, for deletion. Call the 
       // FileChunkManager to delete the file chunk
       auto report_reply(reply.value());
-      for (auto& stale_chunk_handle : report_reply.stale_chunk_handles()) {
-        LOG(INFO) << "Received stale / deleted chunk handle " 
-                  << stale_chunk_handle << ". File chunk server deleting "
-                  << "the actual file chunk";
-        auto delete_chunk_status(
-            FileChunkManager::GetInstance()->DeleteChunk(stale_chunk_handle));
-        if (!delete_chunk_status.ok()) {
-          LOG(ERROR) << "Error encountered when deleting file chunk " 
-                     << stale_chunk_handle << " due to " << delete_chunk_status;
-        }
-      }
+      // for (auto& stale_chunk_handle : report_reply.stale_chunk_handles()) {
+      //   LOG(INFO) << "Received stale / deleted chunk handle " 
+      //             << stale_chunk_handle << ". File chunk server deleting "
+      //             << "the actual file chunk";
+      //   auto delete_chunk_status(
+      //       FileChunkManager::GetInstance()->DeleteChunk(stale_chunk_handle));
+      //   if (!delete_chunk_status.ok()) {
+      //     LOG(ERROR) << "Error encountered when deleting file chunk " 
+      //                << stale_chunk_handle << " due to " << delete_chunk_status;
+      //   }
+      // }
       ++successful_report;
     } else {
       // failed

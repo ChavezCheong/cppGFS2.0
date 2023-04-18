@@ -46,7 +46,6 @@ namespace gfs
         protos::grpc::OpenFileReply *reply,
         bool is_leader)
     {
-      LOG(INFO) << "SEGFAULTED HERE?";
       const std::string &filename(request->filename());
       const uint32_t chunk_index(request->chunk_index());
       if (!metadata_manager()->ExistFileMetadata(filename))
@@ -86,10 +85,11 @@ namespace gfs
       metadata.set_chunk_handle(chunk_handle);
       metadata.set_version(1); // 1 is the initialized version
       metadata_manager()->SetFileChunkMetadata(metadata);
-
-      reply->mutable_metadata()->set_chunk_handle(chunk_handle);
-      reply->mutable_metadata()->set_version(1);
-
+      if (is_leader)
+      {
+        reply->mutable_metadata()->set_chunk_handle(chunk_handle);
+        reply->mutable_metadata()->set_version(1);
+      }
       // Step 3. Coordinate with chunk servers to initialize the file chunk
       for (auto chunk_server_location :
            chunk_server_manager().GetChunkLocations(chunk_handle))
@@ -142,17 +142,21 @@ namespace gfs
         // always be refreshed and get primary location from the WRITE call
 
         // Prepare the InitFileChunk reply with the chunk metadata
-        *reply->mutable_metadata()->add_locations() = chunk_server_location;
+        if (is_leader)
+        {
+          *reply->mutable_metadata()->add_locations() = chunk_server_location;
+        }
       }
-
-      if (reply->metadata().locations().empty())
+      if (is_leader)
       {
-        LOG(ERROR) << "No chunk servers are available for allocation.";
-        LOG(ERROR) << "No file chunk can be initialized for: " << chunk_handle;
-        return grpc::Status(grpc::StatusCode::UNAVAILABLE,
-                            "no chunk server is available");
+        if (reply->metadata().locations().empty())
+        {
+          LOG(ERROR) << "No chunk servers are available for allocation.";
+          LOG(ERROR) << "No file chunk can be initialized for: " << chunk_handle;
+          return grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                              "no chunk server is available");
+        }
       }
-
       return grpc::Status::OK;
     }
 
@@ -196,6 +200,7 @@ namespace gfs
       }
       return chunk_creation_status;
     }
+
     grpc::Status MasterMetadataServiceImpl::HandleFileChunkRead(
         const protos::grpc::OpenFileRequest *request,
         protos::grpc::OpenFileReply *reply)
@@ -555,7 +560,6 @@ namespace gfs
                                                      bool is_leader)
     {
       // Dispatch different mode to different handle function
-      LOG(INFO) << "awef";
       switch (request->mode())
       {
       case OpenFileRequest::CREATE:

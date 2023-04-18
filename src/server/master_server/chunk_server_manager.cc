@@ -85,7 +85,6 @@ ChunkServerLocationThreadSafeFlatSet ChunkServerManager::AllocateChunkServer(
               << " (new available disk= " << new_available_disk << "mb)"
               << " for storing chunk " << chunk_handle;
   }
-
   if (allocated_servers_count > 0) {
     // We did some allocations and changed some servers availabe disk. Lets
     // reorder them since we always keep the list sorted.
@@ -99,7 +98,6 @@ ChunkServerLocationThreadSafeFlatSet ChunkServerManager::AllocateChunkServer(
     // request path).
     this->chunk_servers_priority_list_.sort(
         ChunkServerAvailableDiskGreaterCompare());
-
     // update chunk_handle to location mapping with this info
     this->chunk_locations_map_.insert({chunk_handle, allocated_locations});
   }
