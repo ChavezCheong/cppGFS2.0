@@ -260,6 +260,31 @@ namespace gfs
       }
     }
 
+    google::protobuf::util::StatusOr<std::pair<protos::ChunkServerLocation, uint64_t>> MasterMetadataServiceImpl::GetPreLeaseMetadata(
+        const protos::grpc::OpenFileRequest *request)
+    {
+      // Modify if we have time
+      const std::string &filename(request->filename());
+      const uint32_t chunk_index(request->chunk_index());
+
+      google::protobuf::util::StatusOr<std::string> chunk_handle_or(
+          metadata_manager()->GetChunkHandle(filename, chunk_index));
+
+      protos::ChunkServerLocation location;
+      for (auto chunk_server_location : chunk_server_manager().GetChunkLocations(chunk_handle_or.value()))
+      {
+        // return the first one
+        location = chunk_server_location;
+        break;
+      }
+
+      // get expiration timer
+      uint64_t expiration_unix_sec = absl::ToUnixSeconds(
+          absl::Now() + config_manager_->GetWriteLeaseTimeout());
+
+      return std::pair<protos::ChunkServerLocation, uint64_t>(location, expiration_unix_sec);
+    }
+
     grpc::Status MasterMetadataServiceImpl::HandleFileChunkWrite(
         const protos::grpc::OpenFileRequest *request,
         protos::grpc::OpenFileReply *reply)

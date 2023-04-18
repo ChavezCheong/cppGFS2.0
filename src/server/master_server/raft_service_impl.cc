@@ -181,6 +181,7 @@ namespace gfs
             if (currState == State::Leader)
             {
                 LOG(INFO) << "Handle OpenFile Request from client.";
+                MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
                 if (request->mode() == protos::grpc::OpenFileRequest::CREATE)
                 {
                     LogEntry new_log;
@@ -195,10 +196,28 @@ namespace gfs
                     // }
                     LOG(INFO) << "(LEADER) Replicated Create File request to followers.";
                     SendAppendEntries();
+                    lock_.Unlock();
+                    return MetadataHandler.OpenFile(context, request, reply, true);
                 }
-                MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
-                lock_.Unlock();
-                return MetadataHandler.OpenFile(context, request, reply, true);
+                else if (request->mode() == protos::grpc::OpenFileRequest::WRITE) {
+                    LogEntry new_log;
+                    OpenFileRequest *new_request = new protos::grpc::OpenFileRequest(*request);
+                    new_log.set_allocated_open_file(new_request);
+                    new_log.set_index(log_.size());
+                    new_log.set_term(currentTerm);
+                    // Get lease
+                    auto lease_pair = MetadataHandler.GetPreLeaseMetadata(request);
+                    protos::ChunkServerLocation *new_location = new protos::ChunkServerLocation(lease_pair.value().first);
+                    new_log.set_allocated_chunk_server_location(new_location);
+                    new_log.set_expirationtime(lease_pair.value().second);
+                    log_.push_back(new_log);
+                    LOG(INFO) << "(LEADER) Replicated Create Lease request to followers.";
+                    SendAppendEntries();
+                    lock_.Unlock();
+                    return MetadataHandler.OpenFile(context, request, reply, true);
+                }
+                
+                
             }
             else
             {
@@ -408,11 +427,16 @@ namespace gfs
             if (request->leadercommit() > lastApplied)
             {
                 for (uint32_t commit_index = lastApplied; commit_index < request->leadercommit(); ++commit_index)
-                {
+                {   
                     OpenFileRequest *new_request = new OpenFileRequest(log_[commit_index+1].open_file());
                     OpenFileReply *new_reply;
+                    if (new_request->mode() == protos::grpc::OpenFileRequest::WRITE) {
+                        // apply the lease
+                    }
+                    else {
                     MasterMetadataServiceImpl MetadataHandler(config_manager_, resolve_hostname_);
                     MetadataHandler.OpenFile(context, new_request, new_reply, false);
+                    }
                     lastApplied++;
                 }
             }

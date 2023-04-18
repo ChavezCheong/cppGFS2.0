@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package protos.grpc;
 import "src/protos/grpc/master_metadata_service.proto";
+import "src/protos/chunk_server.proto";
 import "google/protobuf/empty.proto";
 
 
@@ -27,6 +28,8 @@ message LogEntry {
         OpenFileRequest open_file = 3;
         DeleteFileRequest delete_file = 4;
     }
+    uint64 expirationTime = 5;
+    ChunkServerLocation chunk_server_location = 6;
 }
 
 message AppendEntriesRequest {
