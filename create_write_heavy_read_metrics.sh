@@ -17,7 +17,6 @@ else
   ((create_failures++))
 fi
 write_output=$(time -p bazel-bin/gfs_client_main --mode=write --filename="$filename" --offset=0 --data='Hello World!' 2>&1)
-  echo $write_output
   if [[ "$write_output" == *"Data written successfully"* ]]; then
     echo "Write Success: $filename"
     ((write_successes++))
@@ -25,7 +24,7 @@ write_output=$(time -p bazel-bin/gfs_client_main --mode=write --filename="$filen
     echo "Write Failure: $filename"
     ((write_failures++))
   fi
-for i in {1..500}; do
+for i in {1..300}; do
   read_output=$(time -p bazel-bin/gfs_client_main --mode=read --filename=$filename --offset=0 --nbytes=100 2>&1)
   if [[ "$read_output" == *"Data read: 'Hello World!'"* ]]; then
     echo "Read Success: $filename"

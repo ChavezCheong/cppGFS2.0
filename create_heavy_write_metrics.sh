@@ -15,7 +15,7 @@ else
   ((create_failures++))
 fi
 offset=0
-for i in {1..500}; do
+for i in {1..300}; do
   write_output=$(time -p bazel-bin/gfs_client_main --mode=write --filename="$filename" --offset=$offset --data='Hello World!' 2>&1)
   if [[ "$write_output" == *"Data written successfully"* ]]; then
     echo "Write Success: $filename"
