@@ -90,7 +90,7 @@ google::protobuf::util::Status ClientImpl::CreateFile(
 
   int count = 1;
   std::string master_name = "master_server_0";
-  while (!open_file_or.ok() && count <= 3) {
+  while (!open_file_or.ok() && count <= 7) {
     primary_master_name = master_name + std::to_string(count);
     LOG(INFO) << "Client Sending to master " << primary_master_name; 
     try_get_master = raft_service_client_map_.TryGetValue(primary_master_name);
@@ -171,7 +171,7 @@ google::protobuf::util::Status ClientImpl::GetMetadataForChunk(
 
     int count = 1;
     std::string master_name = "master_server_0";
-    while (!open_file_or.ok() && count <= 3) {
+    while (!open_file_or.ok() && count <= 7) {
       primary_master_name = master_name + std::to_string(count);
       try_get_master = raft_service_client_map_.TryGetValue(primary_master_name);
       open_file_or = try_get_master.first->SendRequest(open_file_request,client_context);

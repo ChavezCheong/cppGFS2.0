@@ -67,6 +67,14 @@ namespace gfs
             {
                 serverId = 5;
             }
+            else if (master_name == "master_server_06")
+            {
+                serverId = 6;
+            }
+            else if (master_name == "master_server_07")
+            {
+                serverId = 7;
+            }
 
             // set up the lock
             absl::MutexLock l(&lock_);
@@ -574,7 +582,7 @@ namespace gfs
             LOG(INFO) << "Numbers of votes are " << numVotes;
 
             // TODO: CHANGE THIS TO CALCULATED QUORUM
-            if (numVotes >= 1)
+            if (numVotes >= 3)
             {
                 ConvertToLeader();
             }
